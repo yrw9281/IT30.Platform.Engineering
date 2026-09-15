@@ -49,6 +49,12 @@
 - 先以具體情境或問題建立動機，再給定義與解法。概念文可用生活化類比與引導問題，但類比必須服務於技術理解，不可取代精確說明。
 - 可坦白實作中的限制、取捨與尚未處理的邊界；不要把簡化範例包裝成生產環境萬用解。適合延伸思考的議題可用 `## 思考問題` 留白給讀者，不必強行給出唯一答案。
 
+### Kubernetes controller 術語
+
+- 使用「控制迴路（Control Loop）」描述 Kubernetes controller 持續觀察目標狀態與目前狀態、採取動作、再觀察結果的整體模式。Kubernetes 官方使用 `control loop`；本系列不用「協調迴圈」。
+- 使用 `reconcile` 描述控制器的一次處理：controller 讀取資源與目前狀態後，建立、更新或刪除資源來處理差異。撰寫 Operator、`Reconciler` 介面、事件觸發與重試時，應寫「執行 `reconcile`」或「一次 `reconcile`」。
+- 不要將 `Reconcile Loop` 當成 `Control Loop` 的同義正式術語。若需要同時說明兩者，可寫成「controller 以控制迴路（Control Loop）運作，並在每次觸發時執行 `reconcile`」。
+
 ### 概念文與實作文
 
 - Day 02 至 Day 11 等概念或架構文，從現況痛點、具體案例或核心概念切入，再依需要補上比較、優點與限制；首次定義的關鍵詞可使用粗體。
