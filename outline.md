@@ -89,7 +89,7 @@ DDD? Clean Architecture? Microservices? 帶你用.NET實作打造一個現代化
 | --- | --- | --- |
 | **Day 26** | 用 Kubernetes RBAC 與 Namespace 隔離團隊權限 | 讓 IDP 產出的服務在同一個 Kubernetes 叢集中受到權限邊界限制，避免跨團隊越權。 |
 | **Day 27** | Policy as Code：OPA Gatekeeper 怎麼檢查資源 | 介紹 Open Policy Agent（OPA），並說明 Admission Controller 為何能在資源進入叢集前執行安全檢查。 |
-| **Day 28** | 用 Rego 阻擋高風險 YAML | 實作規則，要求資源限制、阻擋特權容器，並限制映像檔只能從私有 Image Registry 拉取。 |
+| **Day 28** | 用 Rego 阻擋高風險 YAML | 實作規則，要求資源限制、阻擋特權容器，並限制映像檔只能從核准的 GHCR repository 拉取。 |
 | **Day 29** | Istio 怎麼管理微服務流量 | 導入 Istio Service Mesh，說明 Sidecar 如何接管微服務進出流量。 |
 | **Day 30** | 設定 mTLS 與 AuthorizationPolicy | 實作服務間的自動流量加密與授權策略，限制只有白名單服務能互相通訊。 |
 
@@ -120,7 +120,7 @@ DDD? Clean Architecture? Microservices? 帶你用.NET實作打造一個現代化
 | 13 | 跨服務 Trace Context | 入口請求、服務呼叫、資料庫 span 與 trace ID 的傳遞路徑。 |
 | 14 | Observability 平台整合 | Prometheus、Loki、Tracing backend、Grafana，以及 trace-to-logs／metrics 的跳轉關係。 |
 | 15 | CI Pipeline | Commit/PR、lint、test、build、artifact 或 image 與失敗回饋。 |
-| 16 | Container Image 建置與版本流 | Source commit、tag 策略、container registry 與 immutable image digest。 |
+| 16 | Container Image 建置與版本流 | Source commit、tag 策略、GHCR 與 immutable image digest。 |
 | 17 | CI 與 GitOps 職責交界 | CI 更新 image reference、PR/Git review、Argo CD 拉取變更及部署的完整流程。 |
 | 18 | IDP 黃金路徑總架構 | Portal、API、Git、Argo CD、`Microservice` CRD、Operator、Kubernetes、webhook 與資料庫的控制與回饋流。 |
 | 19 | `Microservice` CRD 合約邊界 | 開發者可填的簡化 spec、平台隱藏的 Kubernetes 細節與 status 回報。 |
@@ -132,7 +132,7 @@ DDD? Clean Architecture? Microservices? 帶你用.NET實作打造一個現代化
 | 25 | 狀態反饋閉環 | Argo CD Notification webhook、IDP API、資料庫與 Portal 狀態更新的事件方向。 |
 | 26 | Namespace 多租戶與 RBAC 邊界 | Team namespace、ServiceAccount、Role、RoleBinding 與跨 namespace 存取拒絕。 |
 | 27 | OPA Gatekeeper Admission 流程 | Kubernetes API request、Gatekeeper、ConstraintTemplate、Constraint 與 allow/deny 結果。 |
-| 28 | Policy 違規與拒絕案例 | 缺少 resource limits、privileged container、非私有 registry image 的請求與拒絕訊息。 |
+| 28 | Policy 違規與拒絕案例 | 缺少 resource limits、privileged container、非核准 GHCR image 的請求與拒絕訊息。 |
 | 29 | Istio Sidecar 流量管控 | Ingress、Envoy sidecar、服務流量與平台控制面的責任邊界。 |
 | 30 | mTLS 與 AuthorizationPolicy | 雙向 TLS 加密、身分驗證，以及白名單服務允許／拒絕的流向。 |
 | 31 | 完成版平台演進地圖 | Day 01 平台藍圖的完成版本，並標示可持續演進的 AI、成本、可靠性與開發者體驗方向。 |
