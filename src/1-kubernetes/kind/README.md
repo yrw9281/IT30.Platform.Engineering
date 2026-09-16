@@ -2,7 +2,7 @@
 
 範例只有兩個 container：提供待辦事項 API 的 `todo-api`，以及反向代理 API 並提供 HTML 的 `web`。資料存在 API process 的記憶體中，Pod 重建後會消失；這是為了把焦點放在 Kubernetes 的資源關係，不是資料庫部署範例。
 
-先在 `src/todo-microservices` 建置 image：
+先在 `src/0-todo-microservices` 建置 image：
 
 ```bash
 docker build -t todo-api:0.1.0 Todo.Api
