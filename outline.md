@@ -33,7 +33,7 @@ DDD? Clean Architecture? Microservices? 帶你用.NET實作打造一個現代化
 | **Day 04** | Helm 與 Kustomize：怎麼管理不同環境的設定 | 處理靜態 YAML 的限制，介紹如何為 Dev、Staging 與 Prod 進行參數化與渲染。 |
 | **Day 05** | CRD 是什麼：讓 Kubernetes 認識自訂資源 | 說明如何擴充 Kubernetes API，讓它認識非原生資源，並為後續的專屬平台合約做準備。 |
 
-### 第二階段：GitOps 部署（Day 06 - Day 09）
+### 第二階段：GitOps 部署（Day 06 - Day 08）
 
 用 Git 保存基礎設施與部署狀態，並建立自動同步機制。
 
@@ -42,7 +42,6 @@ DDD? Clean Architecture? Microservices? 帶你用.NET實作打造一個現代化
 | **Day 06** | GitOps 怎麼用 Git 管理部署狀態 | 對比 Push-based CI 腳本與 Pull-based 架構，說明權限隔離與災難還原的差異。 |
 | **Day 07** | 用 Argo CD 將 Git 的 YAML 同步到 Kubernetes | 部署 Argo CD，解析 `Application` 資源，並將 Git 儲存庫中的 YAML 變更自動同步至叢集。 |
 | **Day 08** | 用 Argo CD ApplicationSet 管理多個服務與環境 | 運用 Git 與 List Generator 產生 `Application`，減少微服務與多叢集環境中的手動 YAML 維護。 |
-| **Day 09** | 用 Argo Rollouts 做 Canary 部署 | 透過流量比例控制與自動化指標判斷，進行漸進式發布。 |
 
 ### 第三階段：可觀測性（Day 10 - Day 14）
 
@@ -97,7 +96,7 @@ DDD? Clean Architecture? Microservices? 帶你用.NET實作打造一個現代化
 
 | 天數 | 文章標題 | 內容核心描述 |
 | --- | --- | --- |
-| **Day 31** | **31 天後：把微服務交付流程變成平台** | 回顧從 Kubernetes 到 IDP 與 Service Mesh 的實作，並整理結合 AI 輔助開發時可繼續探索的方向。 |
+| **Day 31** | **30 篇後：把微服務交付流程變成平台** | 回顧從 Kubernetes 到 IDP 與 Service Mesh 的實作，並整理結合 AI 輔助開發時可繼續探索的方向。 |
 
 ## 視覺素材規劃
 
@@ -113,7 +112,6 @@ DDD? Clean Architecture? Microservices? 帶你用.NET實作打造一個現代化
 | 06 | Push-based CI 與 Pull-based GitOps 對照 | 兩種部署模式的變更方向、權限邊界與 Git 作為單一真實來源的位置。 |
 | 07 | Argo CD 架構與同步流程 | Git repository、Application、Argo CD、Kubernetes cluster 與 sync／health 狀態。 |
 | 08 | ApplicationSet 生成流程 | Git/List Generator 輸入、template，以及產生多環境或多叢集 Application 的結果。 |
-| 09 | Canary 發布生命週期 | Rollout、Stable/Canary ReplicaSet、流量比例、分析結果與 promotion／rollback。 |
 | 10 | Metrics、Logs、Traces 黃金三角 | 同一服務與請求如何以三種 telemetry signal 互相定位。 |
 | 11 | OpenTelemetry 全貌 | Application SDK、OTel Collector、telemetry backend 與標準化資料流。 |
 | 12 | OpenTelemetry Collector pipeline | Receiver、Processor、Exporter 的處理順序，以及過濾、脫敏、批次與轉送。 |
