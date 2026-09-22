@@ -1,0 +1,10 @@
+apiVersion: platform.example.io/v1alpha1
+kind: Microservice
+metadata:
+  name: todo-api
+  namespace: todo
+  labels:
+    app.kubernetes.io/owner: todo-team
+spec:
+  image: ghcr.io/yrw9281/it30-todo-api:0.1.0
+  port: 8080

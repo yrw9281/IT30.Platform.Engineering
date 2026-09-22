@@ -1,0 +1,18 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: todo
+  namespace: argocd
+spec:
+  description: Deploy the Todo application from its approved Git source.
+  sourceRepos:
+    - https://github.com/yrw9281/IT30.Platform.Engineering.git
+  destinations:
+    - namespace: todo
+      server: https://kubernetes.default.svc
+  clusterResourceWhitelist:
+    - group: ""
+      kind: Namespace
+  namespaceResourceWhitelist:
+    - group: "*"
+      kind: "*"

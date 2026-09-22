@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Todo</title>
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 2rem auto; max-width: 42rem; }
+    form { display: flex; gap: .5rem; }
+    input { flex: 1; padding: .5rem; }
+    button { cursor: pointer; padding: .5rem .75rem; }
+    li { display: flex; align-items: center; gap: .5rem; margin: .5rem 0; }
+    .completed { color: #666; text-decoration: line-through; }
+    .delete { margin-left: auto; }
+  </style>
+</head>
+<body>
+  <h1>待辦事項</h1>
+  <form id="create-form">
+    <input id="title" aria-label="待辦事項" placeholder="新增待辦事項" required>
+    <button type="submit">新增</button>
+  </form>
+  <ul id="todos"></ul>
+  <script>
+    const todosElement = document.querySelector("#todos");
+    const titleElement = document.querySelector("#title");
+
+    async function loadTodos() {
+      const response = await fetch("/api/todos");
+      const todos = await response.json();
+      todosElement.replaceChildren(...todos.map((todo) => {
+        const item = document.createElement("li");
+        const checkbox = document.createElement("input");
+        checkbox.type = "checkbox";
+        checkbox.checked = todo.completed;
+        checkbox.addEventListener("change", () => updateTodo(todo.id, checkbox.checked));
+        const title = document.createElement("span");
+        title.textContent = todo.title;
+        title.className = todo.completed ? "completed" : "";
+        const remove = document.createElement("button");
+        remove.textContent = "刪除";
+        remove.className = "delete";
+        remove.addEventListener("click", () => deleteTodo(todo.id));
+        item.append(checkbox, title, remove);
+        return item;
+      }));
+    }
+
+    document.querySelector("#create-form").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      await fetch("/api/todos", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: titleElement.value })
+      });
+      titleElement.value = "";
+      await loadTodos();
+    });
+
+    async function updateTodo(id, completed) {
+      await fetch(`/api/todos/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ completed })
+      });
+      await loadTodos();
+    }
+
+    async function deleteTodo(id) {
+      await fetch(`/api/todos/${id}`, { method: "DELETE" });
+      await loadTodos();
+    }
+
+    loadTodos();
+  </script>
+</body>
+</html>
