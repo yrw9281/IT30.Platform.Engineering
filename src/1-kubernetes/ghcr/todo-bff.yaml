@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
         - name: todo-bff
-          image: ghcr.io/yrw9281/it30-todo-bff:0.1.0
+          image: ghcr.io/yrw9281/it30-todo-bff@sha256:38bd4bf59f7c5c8360e634c6f5b2ed52f79c678083dfa2ced1603b4732fc2b61
           imagePullPolicy: IfNotPresent
           ports:
             - name: http

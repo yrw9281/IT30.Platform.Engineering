@@ -3,7 +3,7 @@ WORKDIR /src
 COPY Todo.Bff.csproj .
 RUN dotnet restore
 COPY . .
-RUN dotnet publish --configuration Release --output /app/publish --no-restore
+RUN dotnet publish --configuration Release --output /app/publish
 
 FROM mcr.microsoft.com/dotnet/aspnet:8.0
 WORKDIR /app

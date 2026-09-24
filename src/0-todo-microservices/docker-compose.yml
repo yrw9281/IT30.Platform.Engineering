@@ -12,11 +12,11 @@ services:
     ports:
       - "8080:8080"
     depends_on:
-      - todo-bff
+      - todo-api
 
   web:
     build: ./WebApp
     ports:
       - "8081:80"
     depends_on:
-      - todo-api
+      - todo-bff
