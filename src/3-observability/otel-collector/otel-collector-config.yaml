@@ -42,6 +42,14 @@ data:
     exporters:
       debug:
         verbosity: detailed
+      prometheus:
+        endpoint: 0.0.0.0:8889
+        resource_to_telemetry_conversion:
+          enabled: true
+      otlphttp/tempo:
+        endpoint: http://tempo.observability.svc:4318
+      otlphttp/loki:
+        endpoint: http://loki.observability.svc:3100/otlp
 
     service:
       extensions: [health_check]
@@ -53,7 +61,7 @@ data:
             - resource/platform
             - attributes/remove-sensitive
             - batch
-          exporters: [debug]
+          exporters: [debug, otlphttp/tempo]
         metrics:
           receivers: [otlp]
           processors:
@@ -61,7 +69,7 @@ data:
             - resource/platform
             - attributes/remove-sensitive
             - batch
-          exporters: [debug]
+          exporters: [debug, prometheus]
         logs:
           receivers: [otlp]
           processors:
@@ -69,4 +77,4 @@ data:
             - resource/platform
             - attributes/remove-sensitive
             - batch
-          exporters: [debug]
+          exporters: [debug, otlphttp/loki]

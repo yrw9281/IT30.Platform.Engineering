@@ -1,8 +1,13 @@
 # OpenTelemetry Collector Gateway
 
-這組 manifest 在 `observability` Namespace 部署一個 OpenTelemetry Collector Gateway。它接收 OTLP/gRPC（`4317`）與 OTLP/HTTP（`4318`）的 Metrics、Logs 和 Traces，依序執行記憶體限制、補上 `platform.name=todo-platform`、移除列出的敏感 attributes、批次處理，最後交給 `debug` exporter 輸出到 Collector log。
+這組 manifest 在 `observability` Namespace 部署一個 OpenTelemetry Collector Gateway。它接收 OTLP/gRPC（`4317`）與 OTLP/HTTP（`4318`）的 Metrics、Logs 和 Traces，依序執行記憶體限制、補上 `platform.name=todo-platform`、移除列出的敏感 attributes、批次處理，最後依 signal 交給不同 exporter：
 
-`debug` exporter 只用於開發與驗證。它會輸出通過處理後的 telemetry，因此不應作為正式環境的 backend。
+- Metrics 透過 Prometheus exporter 暴露在 `8889`，由 Prometheus scrape。
+- Logs 以 OTLP/HTTP 傳送到 Loki。
+- Traces 以 OTLP/HTTP 傳送到 Tempo。
+- `debug` exporter 仍保留在三條 pipeline，方便在開發環境檢查資料。
+
+Prometheus、Loki 與 Tempo 必須先部署，否則 logs 與 traces exporter 無法送出資料。這組設定的 backend endpoint 對應 Grafana observability stack 的 Service。
 
 ## 部署
 
@@ -17,6 +22,7 @@ kubectl get deployment,service -n observability
 ```text
 otel-collector.observability.svc:4317  # OTLP/gRPC
 http://otel-collector.observability.svc:4318  # OTLP/HTTP
+otel-collector.observability.svc:8889  # Prometheus scrape
 ```
 
 ## 驗證 Collector 健康狀態

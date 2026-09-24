@@ -29,6 +29,8 @@ spec:
               containerPort: 4318
             - name: health
               containerPort: 13133
+            - name: prometheus
+              containerPort: 8889
           resources:
             requests:
               cpu: 100m
@@ -77,3 +79,6 @@ spec:
     - name: otlp-http
       port: 4318
       targetPort: otlp-http
+    - name: prometheus
+      port: 8889
+      targetPort: prometheus

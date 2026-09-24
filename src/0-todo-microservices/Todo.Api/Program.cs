@@ -1,5 +1,7 @@
 using System.Collections.Concurrent;
 using System.Diagnostics;
+using OpenTelemetry.Logs;
+using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 
@@ -21,7 +23,11 @@ builder.Services.AddOpenTelemetry()
     .WithTracing(tracing => tracing
         .AddSource(activitySourceName)
         .AddAspNetCoreInstrumentation()
+        .AddOtlpExporter())
+    .WithMetrics(metrics => metrics
+        .AddAspNetCoreInstrumentation()
         .AddOtlpExporter());
+builder.Logging.AddOpenTelemetry(logging => logging.AddOtlpExporter());
 var app = builder.Build();
 
 var todos = new ConcurrentDictionary<Guid, Todo>();
@@ -47,6 +53,7 @@ app.MapPost("/api/todos", (CreateTodoRequest request) =>
     var todo = new Todo(Guid.NewGuid(), request.Title.Trim(), false, DateTimeOffset.UtcNow);
     todos[todo.Id] = todo;
     activity?.SetTag("todo.completed", todo.Completed);
+    app.Logger.LogInformation("Todo created.");
     return Results.Created($"/api/todos/{todo.Id}", todo);
 });
 
