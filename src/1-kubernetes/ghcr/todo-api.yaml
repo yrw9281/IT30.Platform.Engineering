@@ -15,8 +15,8 @@ spec:
     spec:
       containers:
         - name: todo-api
-          image: ghcr.io/yrw9281/it30-todo-api@sha256:1f2abc834b9cbb85057fd60e55fbecc511ce82c67bd5a12862e63e1e58e7633f
-          imagePullPolicy: IfNotPresent
+          image: ghcr.io/yrw9281/it30-todo-api:0.1.0
+          imagePullPolicy: Always
           ports:
             - name: http
               containerPort: 8080

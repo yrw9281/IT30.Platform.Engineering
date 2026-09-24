@@ -22,13 +22,21 @@ kubectl rollout status deployment/tempo -n observability
 kubectl rollout status deployment/grafana -n observability
 ```
 
-開啟 Grafana：
+在叢集外開啟 Grafana：
+
+```bash
+http://grafana.10.124.2.77.sslip.io
+```
+
+以 `admin`／`admin` 登入後，從 Dashboards 開啟 `Todo service overview`。這個入口由 Istio Gateway 提供，沒有 TLS 或額外的存取控制；僅限受控測試網路。若要讓其他網路使用，必須先設定 TLS、身分驗證與非預設的管理者密碼。
+
+若只需要在執行 `kubectl` 的本機查看，可以改用 port-forward：
 
 ```bash
 kubectl port-forward service/grafana 3000:3000 -n observability
 ```
 
-瀏覽器開啟 `http://127.0.0.1:3000`，以 `admin`／`admin` 登入後，從 Dashboards 開啟 `Todo service overview`。
+接著開啟 `http://127.0.0.1:3000`。
 
 ## 建立資料並確認 dashboard
 

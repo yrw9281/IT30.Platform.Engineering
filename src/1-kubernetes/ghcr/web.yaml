@@ -16,7 +16,7 @@ spec:
       containers:
         - name: web
           image: ghcr.io/yrw9281/it30-todo-web:0.1.0
-          imagePullPolicy: IfNotPresent
+          imagePullPolicy: Always
           ports:
             - name: http
               containerPort: 80

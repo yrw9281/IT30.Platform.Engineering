@@ -7,6 +7,7 @@ resources:
   - loki.yaml
   - tempo.yaml
   - grafana.yaml
+  - ingress.yaml
 
 generatorOptions:
   disableNameSuffixHash: true
