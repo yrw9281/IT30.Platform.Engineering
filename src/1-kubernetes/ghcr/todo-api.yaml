@@ -20,6 +20,15 @@ spec:
           ports:
             - name: http
               containerPort: 8080
+          env:
+            - name: OTEL_SERVICE_NAME
+              value: todo-api
+            - name: OTEL_SERVICE_VERSION
+              value: "0.1.0"
+            - name: DEPLOYMENT_ENVIRONMENT
+              value: staging
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: http://otel-collector.observability.svc:4317
           readinessProbe:
             httpGet:
               path: /health/ready

@@ -4,5 +4,6 @@ kind: Kustomization
 resources:
   - namespace.yaml
   - todo-api.yaml
+  - todo-bff.yaml
   - web.yaml
   - ingress.yaml

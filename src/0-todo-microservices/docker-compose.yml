@@ -1,8 +1,18 @@
 services:
   todo-api:
     build: ./Todo.Api
+    environment:
+      OTEL_SDK_DISABLED: "true"
+
+  todo-bff:
+    build: ./Todo.Bff
+    environment:
+      TODO_API_BASE_URL: http://todo-api:8080
+      OTEL_SDK_DISABLED: "true"
     ports:
       - "8080:8080"
+    depends_on:
+      - todo-bff
 
   web:
     build: ./WebApp
