@@ -28,7 +28,7 @@ otel-collector.observability.svc:8889  # Prometheus scrape
 ## 驗證 Collector 健康狀態
 
 ```bash
-kubectl port-forward service/otel-collector 13133:13133 -n observability
+kubectl port-forward deployment/otel-collector 13133:13133 -n observability
 curl --fail http://127.0.0.1:13133/
 ```
 
