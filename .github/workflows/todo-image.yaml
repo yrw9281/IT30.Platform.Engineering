@@ -1,0 +1,97 @@
+name: todo-image
+
+on:
+  push:
+    tags:
+      - "todo-api-v*"
+      - "todo-bff-v*"
+
+permissions:
+  contents: read
+
+jobs:
+  validate-todo-api:
+    if: startsWith(github.ref_name, 'todo-api-v')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - run: dotnet restore src/0-todo-microservices/Todo.Api/Todo.Api.csproj
+      - run: dotnet test src/0-todo-microservices/Todo.Api/Todo.Api.csproj --configuration Release --no-restore
+      - run: dotnet build src/0-todo-microservices/Todo.Api/Todo.Api.csproj --configuration Release --no-restore
+
+  push-todo-api:
+    if: startsWith(github.ref_name, 'todo-api-v') && needs.validate-todo-api.result == 'success'
+    needs: validate-todo-api
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - id: image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./src/0-todo-microservices/Todo.Api
+          push: true
+          tags: |
+            ghcr.io/yrw9281/it30-todo-api:${{ github.sha }}
+            ghcr.io/yrw9281/it30-todo-api:${{ github.ref_name }}
+          provenance: true
+          sbom: true
+
+      - run: 'echo "todo-api digest: ${{ steps.image.outputs.digest }}"'
+
+  validate-todo-bff:
+    if: startsWith(github.ref_name, 'todo-bff-v')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - run: dotnet restore src/0-todo-microservices/Todo.Bff/Todo.Bff.csproj
+      - run: dotnet test src/0-todo-microservices/Todo.Bff/Todo.Bff.csproj --configuration Release --no-restore
+      - run: dotnet build src/0-todo-microservices/Todo.Bff/Todo.Bff.csproj --configuration Release --no-restore
+
+  push-todo-bff:
+    if: startsWith(github.ref_name, 'todo-bff-v') && needs.validate-todo-bff.result == 'success'
+    needs: validate-todo-bff
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - id: image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./src/0-todo-microservices/Todo.Bff
+          push: true
+          tags: |
+            ghcr.io/yrw9281/it30-todo-bff:${{ github.sha }}
+            ghcr.io/yrw9281/it30-todo-bff:${{ github.ref_name }}
+          provenance: true
+          sbom: true
+
+      - run: 'echo "todo-bff digest: ${{ steps.image.outputs.digest }}"'
