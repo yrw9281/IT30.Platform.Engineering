@@ -1,0 +1,44 @@
+apiVersion: scaffolder.backstage.io/v1beta3
+kind: Template
+metadata:
+  name: todo-api-dev-image
+  title: Propose a Todo API image for Dev
+  description: Propose a reviewed Microservice image change for Todo Dev.
+spec:
+  owner: todo
+  type: service
+  parameters:
+    - title: Image from the release workflow
+      required:
+        - digest
+      additionalProperties: false
+      properties:
+        digest:
+          title: Image digest (64 lowercase hex characters, without sha256:)
+          type: string
+          minLength: 64
+          maxLength: 64
+          pattern: "^[0-9a-f]{64}$"
+  steps:
+    - id: render
+      name: Render the Microservice
+      action: fetch:template
+      input:
+        url: ./skeleton
+        values:
+          digest: ${{ parameters.digest }}
+    - id: propose
+      name: Propose a config change
+      action: publish:github:pull-request
+      input:
+        repoUrl: github.com?owner=yrw9281&repo=repo-config
+        branchName: backstage/todo-api/dev/${{ parameters.digest }}
+        targetBranchName: main
+        sourcePath: .
+        targetPath: apps/todo-api/overlays/dev
+        title: Propose Todo API image for Dev
+        description: Review the image digest and environment before merging.
+  output:
+    links:
+      - title: Review the config change
+        url: ${{ steps.propose.output.remoteUrl }}

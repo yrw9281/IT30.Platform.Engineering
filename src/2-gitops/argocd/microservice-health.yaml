@@ -1,0 +1,35 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cm
+  namespace: argocd
+data:
+  resource.customizations.health.platform.example.io_Microservice: |
+    hs = {}
+
+    if obj.status == nil or
+       obj.status.observedGeneration ~= obj.metadata.generation then
+      hs.status = "Progressing"
+      hs.message = "Waiting for the operator to observe this generation"
+      return hs
+    end
+
+    for _, condition in ipairs(obj.status.conditions or {}) do
+      if condition.type == "Stalled" and condition.status == "True" then
+        hs.status = "Degraded"
+        hs.message = condition.message or condition.reason or "Reconciliation stalled"
+        return hs
+      end
+    end
+
+    for _, condition in ipairs(obj.status.conditions or {}) do
+      if condition.type == "Ready" and condition.status == "True" then
+        hs.status = "Healthy"
+        hs.message = condition.message or "Managed resources are ready"
+        return hs
+      end
+    end
+
+    hs.status = "Progressing"
+    hs.message = "Waiting for managed resources to become ready"
+    return hs

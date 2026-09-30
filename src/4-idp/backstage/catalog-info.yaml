@@ -1,0 +1,12 @@
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: todo-api
+  description: Todo API service
+  annotations:
+    backstage.io/kubernetes-namespace: todo
+    backstage.io/kubernetes-label-selector: app=todo-api
+spec:
+  type: service
+  lifecycle: experimental
+  owner: todo
