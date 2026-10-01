@@ -1,0 +1,47 @@
+# Grants the Backstage Kubernetes plugin read-only access to the `todo`
+# namespace only. The ServiceAccount lives in `todo` so the token it mints is
+# scoped to that namespace's audience by default.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: backstage-k8s-reader
+  namespace: todo
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: backstage-k8s-reader
+  namespace: todo
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "services", "configmaps", "limitranges", "resourcequotas"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["apps"]
+    resources: ["deployments", "replicasets", "statefulsets", "daemonsets"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["batch"]
+    resources: ["jobs", "cronjobs"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["autoscaling"]
+    resources: ["horizontalpodautoscalers"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["networking.k8s.io"]
+    resources: ["ingresses"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["metrics.k8s.io"]
+    resources: ["pods"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: backstage-k8s-reader
+  namespace: todo
+subjects:
+  - kind: ServiceAccount
+    name: backstage-k8s-reader
+    namespace: todo
+roleRef:
+  kind: Role
+  name: backstage-k8s-reader
+  apiGroup: rbac.authorization.k8s.io

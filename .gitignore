@@ -483,3 +483,8 @@ $RECYCLE.BIN/
 
 # Vim temporary swap files
 *.swp
+corp-ca-bundle.pem
+
+# Backstage demo app (src/4-idp/backstage/app) — local-only build artifacts
+src/4-idp/backstage/app/Dockerfile.local-build
+src/4-idp/backstage/app/corp-ca-bundle.pem
