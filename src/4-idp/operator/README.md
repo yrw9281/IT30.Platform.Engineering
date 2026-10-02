@@ -64,7 +64,7 @@ kubectl logs deployment/microservice-operator -n todo -c operator
 - 程式透過 ConfigMap 掛載；部署腳本會重啟 Pod 載入程式。initContainer 每次啟動從 PyPI 安裝釘選依賴，仍依賴外部網路與未釘選的 transitive dependencies。正式環境應建置可重現的 Operator image。
 - Operator Pod 的 `/healthz` 只證明 Kopf 程序可回應，不是 Todo API 的 `Ready`。
 - Kopf timer 使用 finalizer。刪除測試 CR 時要讓 Operator 保持運作，等待正常清理；不要任意移除 finalizers。刪除正式 `todo-api` CR 會連帶 garbage-collect 已接管的原本 Deployment／Service。
-- `repo-config`、Backstage 的 `todo-dev` Template 與對應 Argo CD Application 仍未串接；此範例不建立 `todo-dev`。
+- Backstage Dev Template 與 Catalog 都沿用 `todo`，不另外建立環境；`repo-config`、模板的 Git PR 與對應 CR Argo CD Application 仍未串接。
 
 ## 本機驗證與叢集測試
 

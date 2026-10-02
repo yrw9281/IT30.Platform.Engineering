@@ -2,7 +2,7 @@ apiVersion: platform.example.io/v1alpha1
 kind: Microservice
 metadata:
   name: todo-api
-  namespace: todo-dev
+  namespace: todo
 spec:
   image: ghcr.io/yrw9281/it30-todo-api@sha256:{{ values.digest }}
   port: 8080

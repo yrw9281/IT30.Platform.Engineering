@@ -23,7 +23,8 @@ rendered = File.read(image_file).sub("{{ values.digest }}", "a" * 64)
 raise "Missing digest substitution" if rendered.include?("{{")
 resource = YAML.safe_load(rendered)
 raise "Wrong image" unless resource.dig("spec", "image") == "ghcr.io/yrw9281/it30-todo-api@sha256:#{"a" * 64}"
-raise "Unexpected destination" unless resource.dig("metadata", "namespace") == "todo-dev"
+raise "Unexpected destination" unless resource.dig("metadata", "namespace") == "todo"
+raise "Catalog and template namespaces differ" unless catalog.dig("metadata", "annotations", "backstage.io/kubernetes-namespace") == resource.dig("metadata", "namespace")
 raise "Unsupported CR field" unless (resource.fetch("spec").keys - %w[image port]).empty?
 raise "Missing Kustomize resource" unless YAML.load_file(File.join(root, "todo-api-dev/skeleton/kustomization.yaml")).fetch("resources") == ["microservice.yaml"]
 

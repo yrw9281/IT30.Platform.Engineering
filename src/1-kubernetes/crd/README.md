@@ -50,7 +50,7 @@ kubectl apply --server-side --dry-run=server -f invalid-todo-api.yaml
 
 ## 實際安裝與所有權
 
-以下會寫入叢集，與上面的 dry-run 不同。需管理者核准，並使用已存在的 `todo` Namespace，不建立 `todo-dev`：
+以下會寫入叢集，與上面的 dry-run 不同。需管理者核准，並使用已存在的 `todo` Namespace，不另外建立環境：
 
 ```bash
 kubectl config current-context

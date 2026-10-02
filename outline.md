@@ -67,7 +67,7 @@ DDD? Clean Architecture? Microservices? 帶你用.NET實作打造一個現代化
 
 ### 第五階段：用 Backstage 串起 IDP 的交付路徑（Day 17 - Day 26）
 
-以 Backstage 作為開發者入口，透過 Git review 與 Argo CD 交付 `Microservice` 資源；Operator 管理工作負載，再讓開發者查詢部署狀態。Backstage 不取代 GitOps controller 或 Operator，也不預設提供逐筆交付事件歷史。
+以 Backstage 作為開發者入口，透過 Git review 與 Argo CD 交付 `Microservice` 資源；Operator 管理工作負載，再讓開發者查詢部署狀態。Dev 沿用既有的 `todo` Namespace，模板、Operator 與 Catalog 都以同一個環境為目標，不另外建立常駐環境。Backstage 不取代 GitOps controller 或 Operator，也不預設提供逐筆交付事件歷史。
 
 | 天數 | 文章標題 | 內容核心描述 |
 | --- | --- | --- |
@@ -77,7 +77,7 @@ DDD? Clean Architecture? Microservices? 帶你用.NET實作打造一個現代化
 | **Day 20** | 用 Kopf 接收 `Microservice` 事件並部署 Operator | 在既有 `todo` Namespace 部署單一副本的 Kopf Operator，實作 create、spec update 與 resume handler，以 log 和 `Accepted` 狀態確認事件處理；此步尚不管理工作負載。 |
 | **Day 21** | 讓 Operator 管理 Todo API 的 Deployment 與 Service | 將 CR 轉成工作負載與 OTel 預設，明確接管既有 Todo API，實作建立／更新、所有權檢查與定期補回；`ResourcesApplied` 只代表設定已提交，不宣稱健康。 |
 | **Day 22** | 讓 Operator 回報新版是否就緒 | 擴充 CRD conditions，實作 rollout、Pod 與 Service endpoint 的健康判斷、generation 防護與 Ready／Stalled 回報；驗證 digest 更新、錯誤 image、資源補回和重啟恢復。 |
-| **Day 23** | 用 Backstage Software Templates 收集服務設定 | 介紹 Software Catalog 與 Software Templates 的不同責任，將開發者輸入轉成受控的 `Microservice` 設定；區分既有 `todo` Operator 與尚未串接的 Dev 模板。 |
+| **Day 23** | 用 Backstage Software Templates 收集服務設定 | 介紹 Software Catalog 與 Software Templates 的不同責任，將開發者輸入轉成受控的 `Microservice` 設定；模板沿用既有 `todo` Namespace，Git PR 與 CR GitOps 仍未串接。 |
 | **Day 24** | 用 Backstage 提出 GitOps 設定 Pull Request | 說明模板如何提出 Git 變更，並在設定儲存庫執行獨立的 YAML／CRD schema 檢查與審查；不把 PR 建立誤認為部署完成。 |
 | **Day 25** | 讓 Argo CD 判斷 `Microservice` 是否健康 | 以 Operator 已回報的 conditions 和 generation 設計自訂 Health Check，區分 Synced、Progressing、Healthy 與 Degraded；Argo CD 整合仍待驗證。 |
 | **Day 26** | 在 Backstage 查看服務與 Kubernetes 部署狀態 | 說明 Catalog 服務身分與 Kubernetes plugin 的資源關聯、可查看的現況和無法自動得到的 Git review／交付事件時間線。 |
