@@ -65,7 +65,7 @@ DDD? Clean Architecture? Microservices? 帶你用.NET實作打造一個現代化
 | **Day 15** | 在 CI 建置 Docker Image，並管理 Tag | 在 CI 中自動建置容器，並比較 Git SHA 與 Semantic Versioning 的 Image Tag 策略。 |
 | **Day 16** | CI 完成後，怎麼把 Image 更新交給 GitOps | 釐清 CI（Build & Test）與 CD（Deploy）的分界，並說明 CI 如何更新 GitOps 設定儲存庫。 |
 
-### 第五階段：用 Backstage 串起 IDP 的交付路徑（Day 17 - Day 24）
+### 第五階段：用 Backstage 串起 IDP 的交付路徑（Day 17 - Day 26）
 
 以 Backstage 作為開發者入口，透過 Git review 與 Argo CD 交付 `Microservice` 資源；Operator 管理工作負載，再讓開發者查詢部署狀態。Backstage 不取代 GitOps controller 或 Operator，也不預設提供逐筆交付事件歷史。
 
@@ -73,30 +73,30 @@ DDD? Clean Architecture? Microservices? 帶你用.NET實作打造一個現代化
 | --- | --- | --- |
 | **Day 17** | 從 Backstage 到 Kubernetes：IDP 的控制流程 | 用 Todo 服務解釋 IDP 與 Backstage 的分工：開發者透過入口提出需求，經 Git PR、Argo CD、`Microservice` 與 Operator 部署，再查看目前狀態；標明尚未串接的環節。 |
 | **Day 18** | 設計 `Microservice` CRD：把 Kubernetes 設定收進平台合約 | 以現有 CRD 的 Image、Port 合約為起點，規劃環境變數與狀態欄位，區分已存在的 schema 與尚未實作的擴充。 |
-| **Day 19** | Operator 模式與 Kopf：怎麼處理 CRD 事件 | 說明為何選擇 Python 框架 Kopf，以及 create、spec 變更、child 資源漂移和狀態回報如何觸發處理。 |
-| **Day 20** | 從 `Microservice` 到 Deployment：Operator 應建立哪些資源 | 對照現有 Todo manifest，說明 Operator 將 `Microservice` 轉成 Deployment、Service 與 OTel 預設所需的欄位合約與驗證條件；尚無 Operator 時不宣稱已產生資源。 |
-| **Day 21** | 用 Backstage Software Templates 收集服務設定 | 介紹 Software Catalog 與 Software Templates 的不同責任，將開發者輸入轉成受控的 `Microservice` 設定；以來源檔與可驗證結果區分範例和規劃。 |
-| **Day 22** | 用 Backstage 提出 GitOps 設定 Pull Request | 說明模板如何提出 Git 變更，並在設定儲存庫執行獨立的 YAML／CRD schema 檢查與審查；不把 PR 建立誤認為部署完成。 |
-| **Day 23** | 讓 Argo CD 判斷 `Microservice` 是否健康 | 以 `Microservice.status.conditions` 和 generation 設計自訂 Health Check，區分 Synced、Progressing、Healthy 與 Degraded，不依賴自製狀態資料庫。 |
-| **Day 24** | 在 Backstage 查看服務與 Kubernetes 部署狀態 | 說明 Catalog 服務身分與 Kubernetes plugin 的資源關聯、可查看的現況和無法自動得到的 Git review／交付事件時間線。 |
+| **Day 19** | Operator 與 Kopf：從服務合約到控制迴路 | 合併事件處理與資源合約的概念，以 Todo API 說明 Kopf handler、重試、所有權、平台預設與狀態回報的分工，銜接 CRD 與實作。 |
+| **Day 20** | 用 Kopf 接收 `Microservice` 事件並部署 Operator | 在既有 `todo` Namespace 部署單一副本的 Kopf Operator，實作 create、spec update 與 resume handler，以 log 和 `Accepted` 狀態確認事件處理；此步尚不管理工作負載。 |
+| **Day 21** | 讓 Operator 管理 Todo API 的 Deployment 與 Service | 將 CR 轉成工作負載與 OTel 預設，明確接管既有 Todo API，實作建立／更新、所有權檢查與定期補回；`ResourcesApplied` 只代表設定已提交，不宣稱健康。 |
+| **Day 22** | 讓 Operator 回報新版是否就緒 | 擴充 CRD conditions，實作 rollout、Pod 與 Service endpoint 的健康判斷、generation 防護與 Ready／Stalled 回報；驗證 digest 更新、錯誤 image、資源補回和重啟恢復。 |
+| **Day 23** | 用 Backstage Software Templates 收集服務設定 | 介紹 Software Catalog 與 Software Templates 的不同責任，將開發者輸入轉成受控的 `Microservice` 設定；區分既有 `todo` Operator 與尚未串接的 Dev 模板。 |
+| **Day 24** | 用 Backstage 提出 GitOps 設定 Pull Request | 說明模板如何提出 Git 變更，並在設定儲存庫執行獨立的 YAML／CRD schema 檢查與審查；不把 PR 建立誤認為部署完成。 |
+| **Day 25** | 讓 Argo CD 判斷 `Microservice` 是否健康 | 以 Operator 已回報的 conditions 和 generation 設計自訂 Health Check，區分 Synced、Progressing、Healthy 與 Degraded；Argo CD 整合仍待驗證。 |
+| **Day 26** | 在 Backstage 查看服務與 Kubernetes 部署狀態 | 說明 Catalog 服務身分與 Kubernetes plugin 的資源關聯、可查看的現況和無法自動得到的 Git review／交付事件時間線。 |
 
-### 第六階段：安全與流量策略（Day 25 - Day 29）
+### 第六階段：安全與流量策略（Day 27 - Day 29）
 
-隨著自動化與自服務程度提高，用權限、Policy 與流量控制理解人為失誤與越權存取的邊界。本階段以概念、決策條件與驗收情境為主，不宣稱 RBAC、Gatekeeper 或 Istio 已在本平台安裝驗證。
+隨著自動化與自服務程度提高，用三篇概念文分別介紹 API 權限、資源政策與服務間流量，回應 Day 01 對 Namespace／RBAC、Policy 與 mTLS 的期待。區分既有 Operator／Backstage 的有限 RBAC 與完整團隊隔離設計；Gatekeeper 政策、Todo sidecar、mTLS 與服務授權仍未在這條交付路徑驗證。
 
 | 天數 | 文章標題 | 內容核心描述 |
 | --- | --- | --- |
-| **Day 25** | Kubernetes RBAC 與 Namespace 能隔離什麼 | 用 Todo 服務情境說明 Namespace、ServiceAccount、Role／RoleBinding 的權限邊界及預期允許／拒絕，區分概念與已驗證設定。 |
-| **Day 26** | Policy as Code：OPA Gatekeeper 怎麼檢查資源 | 說明 Admission、ConstraintTemplate／Constraint、audit 與 dryrun／deny 的不同角色，以及未安裝時的限制。 |
-| **Day 27** | 用 Gatekeeper 辨識高風險工作負載設定 | 分析 resource limits、privileged container 與 image 來源的違規情境與修正方向，不宣稱已實作 Rego 或測得拒絕結果。 |
-| **Day 28** | Istio Sidecar 如何改變微服務流量 | 說明 Sidecar 與控制平面如何處理流量及導入成本，不把 mesh 描述成已安裝的基礎設施。 |
-| **Day 29** | mTLS 與 AuthorizationPolicy 各擋什麼 | 比較工作負載身分、傳輸加密及服務間授權，討論允許／拒絕情境和導入限制，不把政策規劃說成已生效。 |
+| **Day 27** | Kubernetes RBAC 與 Namespace 能隔離什麼 | 以 Todo API、Operator、Argo CD 與 Backstage 的不同身分，簡介 Namespace、ServiceAccount、Role／RoleBinding 與最小權限；區分 API 授權、網路隔離和資源預算。 |
+| **Day 28** | 用 Gatekeeper 理解資源政策與風險設定 | 合併 Admission、ConstraintTemplate／Constraint、audit 和執行模式，分析 limits、privileged、image 來源三種風險；不提供未實作的 Rego 或拒絕結果。 |
+| **Day 29** | Istio 如何處理服務間流量、mTLS 與授權 | 合併 Sidecar／控制平面、工作負載身分、STRICT mTLS 與 AuthorizationPolicy，交代 proxy 成本、允許／拒絕的分工與導入前提；不宣稱 Todo 已加入 mesh。 |
 
 ### 第七階段：回顧（Day 30）
 
 | 天數 | 文章標題 | 內容核心描述 |
 | --- | --- | --- |
-| **Day 30** | **30 篇後：把微服務交付流程變成平台** | 區分既有 Kubernetes、可觀測性、CI 範例與尚未串接的 IDP／安全／Service Mesh 設計，整理結合 AI 輔助開發時可繼續探索的方向。 |
+| **Day 30** | **30 篇後：把微服務交付流程變成平台** | 回顧 Kubernetes、可觀測性、CI、已運作的 Todo Operator 與 Backstage 查詢入口，區分尚未串接的 Git PR／CR GitOps、安全與 Service Mesh 設計，整理持續演進方向。 |
 
 ## 視覺素材規劃
 
@@ -122,15 +122,15 @@ DDD? Clean Architecture? Microservices? 帶你用.NET實作打造一個現代化
 | 16 | CI 與 GitOps 職責交界 | CI 更新 image reference、PR/Git review、Argo CD 拉取變更及部署的完整流程。 |
 | 17 | IDP 黃金路徑總架構 | Backstage 入口、Git PR、Argo CD、`Microservice` CR、Operator、Kubernetes 與查詢狀態的方向；標示未實作邊界。 |
 | 18 | `Microservice` CRD 合約邊界 | 開發者可填的簡化 spec、平台隱藏的 Kubernetes 細節與 status 回報。 |
-| 19 | Operator Reconcile 流程 | Custom Resource event、Kopf handler、資源比對與 status 更新。 |
-| 20 | Operator 資源展開結果 | 一個 `Microservice` 如何展開為 Deployment、Service、OTel 設定與運行狀態。 |
-| 21 | Backstage 服務輸入流程 | Software Catalog 的服務身分、Software Template 的參數、產生 `Microservice` YAML 與輸入限制。 |
-| 22 | GitOps Pull Request 防呆流程 | Backstage 模板建立 branch/PR、設定儲存庫執行 schema validation、review/merge 與錯誤回饋。 |
-| 23 | Argo CD Health 判斷流程 | 自訂 health check 如何從 CRD status 判斷服務的 Progressing、Healthy 或 Degraded。 |
-| 24 | 服務與部署狀態查詢 | Backstage Catalog 與 Kubernetes plugin 如何關聯服務、Deployment/Pod 的現況；區分可查詢狀態與未實作的完整事件時間線。 |
-| 25 | Namespace 多租戶與 RBAC 邊界圖 | Team Namespace、ServiceAccount、Role、RoleBinding 及跨 Namespace 存取的預期拒絕；標示僅為設計。 |
-| 26 | OPA Gatekeeper Admission 流程圖 | API request、Gatekeeper、ConstraintTemplate、Constraint、audit 與預期 allow/deny 分支；不使用實測截圖。 |
-| 27 | Policy 風險情境對照圖 | 缺少 resource limits、privileged container、非核准 image 三種輸入與預期修正，不假造拒絕輸出。 |
-| 28 | Istio Sidecar 流量圖 | Ingress、Envoy sidecar、服務流量與平台控制面的方向及責任；標明未導入。 |
-| 29 | mTLS 與 AuthorizationPolicy 邊界圖 | 雙向 TLS、workload 身分與白名單授權的概念流向；標明尚無測試結果。 |
+| 19 | Operator 控制迴路與責任 | CR 事件或定期檢查、Kopf handler、資源合約與狀態回報的關係；先用 Mermaid 說明設計。 |
+| 20 | Kopf 事件處理流程 | create、spec update、resume 到 log 與 `Accepted` 的方向；補上 Operator Pod 與 CR 狀態畫面。 |
+| 21 | Operator 資源展開與所有權 | CR、Deployment、Service、Pod 與 OTel 的關係；標示既有資源接管與同名衝突的邊界。 |
+| 22 | 新版 rollout 與健康回報 | CR／Deployment generation、Pod 與 EndpointSlice 的觀察流程，以及錯誤 image 的 Ready／Stalled 畫面。 |
+| 23 | Backstage 服務輸入流程 | Software Catalog 的服務身分、Software Template 的參數、產生 `Microservice` YAML 與輸入限制。 |
+| 24 | GitOps Pull Request 防呆流程 | Backstage 模板建立 branch/PR、設定儲存庫執行 schema validation、review/merge 與錯誤回饋。 |
+| 25 | Argo CD Health 判斷流程 | 自訂 health check 如何從 CRD status 判斷服務的 Progressing、Healthy 或 Degraded。 |
+| 26 | 服務與部署狀態查詢 | Backstage Catalog 與 Kubernetes plugin 如何關聯資源現況；區分已運作的查詢設定與未實作的完整事件時間線。 |
+| 27 | Namespace 與 RBAC 權限邊界 | 工作負載、Operator、Argo CD 與 Backstage 查詢身分的不同權限；完整團隊隔離仍為設計。 |
+| 28 | Gatekeeper Admission 與風險回饋 | Template、Constraint、admission／audit 的分工，搭配 limits、privileged、image 的違規與修正方向；不使用實測拒絕畫面。 |
+| 29 | Istio 流量與安全邊界 | BFF／API 的 Sidecar 資料路徑、控制平面、mTLS 與授權判斷；標明 Todo 尚未加入 mesh。 |
 | 30 | 完成版平台演進地圖 | Day 01 平台藍圖的完成版本，並標示可持續演進的 AI、成本、可靠性與開發者體驗方向。 |

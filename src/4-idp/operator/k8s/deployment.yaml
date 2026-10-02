@@ -1,0 +1,105 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: microservice-operator
+  namespace: todo
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: microservice-operator
+  template:
+    metadata:
+      labels:
+        app: microservice-operator
+    spec:
+      serviceAccountName: microservice-operator
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      initContainers:
+        - name: install-dependencies
+          image: python:3.12.12-slim
+          command: [python, -m, pip]
+          args: [install, --no-cache-dir, --disable-pip-version-check, --target=/deps, -r, /code/requirements.txt]
+          env:
+            - name: PYTHONDONTWRITEBYTECODE
+              value: "1"
+          resources:
+            requests:
+              cpu: 25m
+              memory: 128Mi
+            limits:
+              cpu: "1"
+              memory: 512Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          volumeMounts:
+            - name: code
+              mountPath: /code
+              readOnly: true
+            - name: dependencies
+              mountPath: /deps
+            - name: temporary
+              mountPath: /tmp
+      containers:
+        - name: operator
+          image: python:3.12.12-slim
+          command: [python, -m, kopf]
+          args: [run, --standalone, --namespace=todo, --liveness=http://0.0.0.0:8081/healthz, /code/handlers.py]
+          env:
+            - name: USER
+              value: operator
+            - name: PYTHONPATH
+              value: /deps:/code
+            - name: PYTHONDONTWRITEBYTECODE
+              value: "1"
+          ports:
+            - name: health
+              containerPort: 8081
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: health
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: health
+          resources:
+            requests:
+              cpu: 25m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          volumeMounts:
+            - name: code
+              mountPath: /code
+              readOnly: true
+            - name: dependencies
+              mountPath: /deps
+              readOnly: true
+            - name: temporary
+              mountPath: /tmp
+      volumes:
+        - name: code
+          configMap:
+            name: microservice-operator-code
+        - name: dependencies
+          emptyDir: {}
+        - name: temporary
+          emptyDir: {}

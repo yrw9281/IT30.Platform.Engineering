@@ -1,0 +1,76 @@
+# Microservice Operator：三個教學階段
+
+CRD 與 CR 範例統一放在 [CRD 目錄](../../1-kubernetes/crd/README.md)。這裡只保存 Python、依賴、測試與 Operator 本身的 RBAC／Deployment，不再保存另一份 Todo CR。
+
+| 階段 | handler | 行為 |
+| --- | --- | --- |
+| Day 20 | `day20/handlers.py` | 接收 create、spec update、resume，記錄 log 並寫 `Accepted`；不管理工作負載 |
+| Day 21 | `day21/handlers.py` + `resources.py` | 建立／更新已擁有的 Deployment、Service，每 10 秒檢查一次；寫 `ResourcesApplied` 或 `Failed` |
+| Day 22 | `handlers.py` + `resources.py` | 加入 Pod、Deployment rollout、EndpointSlice 健康檢查與 `Ready`／`Stalled` conditions |
+
+Day 21 只 import `Json`、`InvalidSpec`、`OwnershipConflict`、`check_owner`、`contains`、`desired_resources`，可搭配只含這些函式與必要常數的教學版 `resources.py`。不 import 完整 handler，避免註冊 Day 22 行為。`ResourcesApplied` 只表示資源設定已寫入，不代表 image 可拉取、Pod Ready 或 Service 有可用 endpoint。從完整版本切回 Day 21 時，狀態會清除舊 conditions，避免留下過期的 `Ready`。
+
+原本的 observer `day19` 已改名 `day20`；原本完整的 `day20` 現為 `day22`。腳本拒絕 `day19`，選 `day20` 時也會明確提示行為已改變。省略參數時預設 `day22`，會真的啟用資源管理，不是只做觀察。
+
+## 安全的執行順序
+
+這些步驟會寫入叢集。使用已有的 `todo` Namespace，先檢查 kubeconfig 與權限。腳本不建立 Namespace；缺少 CRD 時會停止並顯示安裝指令。不要為了重跑教學另外建立一組常駐 Todo API。
+
+從本目錄執行：
+
+```bash
+kubectl config current-context
+kubectl get namespace todo
+kubectl apply -f ../../1-kubernetes/crd/microservice-crd.yaml
+kubectl wait --for=condition=Established crd/microservices.platform.example.io --timeout=60s
+bash deploy.sh day20
+kubectl apply -f ../../1-kubernetes/crd/todo-api.yaml
+kubectl logs deployment/microservice-operator -n todo -c operator
+kubectl get microservice todo-api -n todo -o yaml
+```
+
+canonical CRD 包含最新的 schema，但 observer 仍只寫 `Accepted`。升級舊 CRD 前可用 `kubectl get microservices -A -o json | python3 validate_crs.py` 檢查既有輸入；這只讀取資料，不修改 CR。它檢查 `spec`、image、port，不取代 API Server 的完整 schema／admission 驗證。
+
+### Day 21：先明確接管，再啟用資源管理
+
+使用 Python 3.12 環境並安裝 `requirements.txt`。先停用或移除其他 controller 對原本子資源的管理：目前 Argo CD 的 `todo` Application 仍讀取 `src/1-kubernetes/kind`，尚未改成同步 CR，不能讓它與 Operator 同時管理同一組 Deployment／Service。`adopt.py` 會拒絕帶有 Argo CD tracking annotation／label 的資源，但無法證明所有其他外部控制器都已停用。
+
+```bash
+python -m pip install -r requirements.txt
+python adopt.py
+bash deploy.sh day21
+kubectl get microservice todo-api -n todo -o yaml
+kubectl get deployment,service todo-api -n todo -o yaml
+```
+
+`adopt.py` 只接管既有 `todo/todo-api`：預先檢查兩個資源、Deployment selector、Service 類型與 ownership，再保留 resourceVersion 替換 ownerReferences；不重建 Deployment，也不變更 Service ClusterIP。兩次 API 寫入不是 transaction；若第二次失敗，修復原因後重跑，不要刪除原本資源。Operator 本身不會自動 adoption，同名外部資源會回報 `Failed` 並記錄原因。
+
+保留原有 `app=todo-api` selector，新增 UID label 以關聯 Pod；預設兩個 replicas、CPU request `25m`、memory request `128Mi`，與既有部署一致。新增的工作負載只適用 Todo API 的 `/health/ready`、`/health/live` 和 OTel 預設，不是通用 Web Operator。
+
+### Day 22：健康狀態
+
+```bash
+bash deploy.sh day22
+kubectl get microservice todo-api -n todo -o yaml
+kubectl logs deployment/microservice-operator -n todo -c operator
+```
+
+此階段先檢查所有 Namespace 的既有 CR 輸入，再套用 canonical CRD 的 required `spec` 與 conditions schema；執行者需要相應的讀取與 CRD 更新權限。`Ready` 要求 Deployment 已觀察目前版本、更新副本全部就緒，且 EndpointSlice 有屬於目標 image Pod 的 ready endpoint。Pod image 錯誤或 rollout 超時會寫 `Stalled`；`observedGeneration` 用來區分舊狀態與本次設定。
+
+## 執行限制與刪除行為
+
+- Operator 以 `--namespace=todo --standalone` 執行，單副本、`Recreate`；沒有 leader election 或 HA，請勿增加 replicas。
+- Namespace `Role` 允許對整個 `todo` 內相應資源操作，不是只授權 `todo-api`，程式的 ownership 檢查也不是 RBAC 隔離。
+- 程式透過 ConfigMap 掛載；部署腳本會重啟 Pod 載入程式。initContainer 每次啟動從 PyPI 安裝釘選依賴，仍依賴外部網路與未釘選的 transitive dependencies。正式環境應建置可重現的 Operator image。
+- Operator Pod 的 `/healthz` 只證明 Kopf 程序可回應，不是 Todo API 的 `Ready`。
+- Kopf timer 使用 finalizer。刪除測試 CR 時要讓 Operator 保持運作，等待正常清理；不要任意移除 finalizers。刪除正式 `todo-api` CR 會連帶 garbage-collect 已接管的原本 Deployment／Service。
+- `repo-config`、Backstage 的 `todo-dev` Template 與對應 Argo CD Application 仍未串接；此範例不建立 `todo-dev`。
+
+## 本機驗證與叢集測試
+
+```bash
+PYTHONPATH=. python -m unittest discover -s tests -p 'test_*.py' -v
+bash -n deploy.sh
+```
+
+`tests/check_cluster.py` 是會寫入叢集的驗證，不是單元測試：會更新正式 Todo CR 的 image、建立短暫 CR、刪除測試 Service、重啟 Operator，並在結束時還原原始 image。它先拒絕已存在的測試名稱；仍只應在核准的維護時段執行。測試涵蓋 UID 保留、image 失敗、timer 補回、所有權衝突、garbage collection，以及重啟後的新 resume log，避免把重啟前的 `Ready` 當作恢復證據。

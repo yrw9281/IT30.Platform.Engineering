@@ -15,7 +15,7 @@
 
 - Uses `better-sqlite3` instead of Postgres for the Catalog database (see commented-out Postgres config in `app/app-config.production.yaml`). State is lost if the pod restarts.
 - Auth is guest-only (`dangerouslyAllowOutsideDevelopment: true`), with no real identity/login.
-- The Kubernetes plugin's label-selector annotation matches each object's own `metadata.labels`. The `todo-api` `Deployment` and `Service` objects currently carry no labels of their own (only the Pods, inherited via the ReplicaSet template, do), so only Pods/ReplicaSets show up in the plugin response — Deployments/Services do not, even though RBAC permits reading them. Fixing this would mean adding matching labels to those manifests in `src/1-kubernetes/`.
+- The Kubernetes plugin's label-selector annotation matches each object's own `metadata.labels`. The original manifests only labeled Pods; the Operator now also labels its adopted `todo-api` Deployment and Service with `app=todo-api`. They can match the Catalog selector, but this does not itself verify the plugin response or grant access to `Microservice` conditions; the reader Role still does not include that custom resource.
 - No ingress is configured; access is via `kubectl port-forward` only, to avoid touching the shared cluster's ingress/Gateway resources used by other learners.
 - `app/Dockerfile.local-build` and `app/corp-ca-bundle.pem` are optional, gitignored helpers for workstations behind a corporate TLS-inspection proxy. They supply the proxy's CA during dependency installation, not the Kubernetes API's CA. The public build uses `app/Dockerfile` and does not need these helpers.
 
@@ -120,6 +120,6 @@ kubectl rollout status deployment/backstage -n backstage --timeout=180s
 
 `todo-api-dev/template.yaml` is a staged Software Template example for updating the planned `repo-config` repository. It limits input to an image digest and fixes the service, Git destination and namespace; it does **not** verify the digest against a CI run or authorize the person submitting it. The GitHub Scaffolder module, Git credentials, protected branch and config checks must be configured before use.
 
-`repo-config`, its Dev overlay, the Argo CD application for it and the Kopf Operator do not exist yet. Do not run the PR action against a real repository until those dependencies and review rules are in place. Rendering the skeleton does not deploy anything.
+The [Kopf Operator](../operator/README.md) now manages the adopted Todo API in the existing `todo` namespace and reports conditions. The planned `repo-config`, its Dev overlay and the Argo CD application for it remain unconnected to the Template. These Operator examples do not create a `todo-dev` namespace. Do not run the PR action against a real repository until those dependencies and review rules are in place. Rendering the skeleton does not deploy anything.
 
 Run the local structure/render check with `ruby src/4-idp/backstage/check-template.rb`. This parses the Backstage YAML, substitutes a test digest and checks the resulting `Microservice` resource. It does not execute Backstage, open a PR or contact a Kubernetes cluster.
