@@ -23,6 +23,11 @@ spec:
             - name: http
               containerPort: 7007
           env:
+            - name: K8S_API_URL
+              valueFrom:
+                secretKeyRef:
+                  name: backstage-k8s-conn
+                  key: apiUrl
             - name: K8S_BACKSTAGE_TOKEN
               valueFrom:
                 secretKeyRef:

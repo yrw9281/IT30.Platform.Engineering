@@ -226,7 +226,7 @@ kubernetes:
   clusterLocatorMethods:
     - type: 'config'
       clusters:
-        - url: https://pisre-k8s-test.garmin.com:6443
+        - url: ${K8S_API_URL}
           name: it30-cluster
           authProvider: 'serviceAccount'
           serviceAccountToken: ${K8S_BACKSTAGE_TOKEN}

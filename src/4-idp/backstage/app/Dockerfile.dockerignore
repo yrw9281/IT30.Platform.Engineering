@@ -1,0 +1,16 @@
+.git
+.yarn/cache
+.yarn/install-state.gz
+node_modules
+packages/*/src
+packages/*/node_modules
+plugins
+*.local.yaml
+*-credentials.yaml
+.env
+.env.*
+private
+**/*.pem
+**/*.crt
+**/*.key
+Dockerfile.local-build

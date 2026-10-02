@@ -9,7 +9,7 @@
     "start": "backstage-cli repo start",
     "build:backend": "yarn workspace backend build",
     "build:all": "backstage-cli repo build --all",
-    "build-image": "yarn workspace backend build-image",
+    "build-image": "docker buildx build --file Dockerfile --tag ghcr.io/yrw9281/it30-idp-backstage:demo --load .",
     "tsc": "tsc",
     "tsc:full": "tsc --skipLibCheck false --incremental false",
     "clean": "backstage-cli repo clean",
