@@ -5,6 +5,9 @@
 - OpenTelemetry Collector 將 metrics 暴露在 `:8889`，Prometheus 每 15 秒抓取一次。
 - Collector 以 OTLP/HTTP 將 logs 傳到 Loki 的 `/otlp`，並將 traces 傳到 Tempo。
 - Grafana provisioning 預先建立三個 datasource，並載入 `Todo service overview` dashboard。
+- Loki datasource 設定 `derivedFields`，將 log 的 `trace_id` label 轉成可點選連結，直接跳到 Tempo 查看該筆請求的完整 span。這是 Tempo trace-to-logs 的反向連結；Grafana 目前不支援在一般 dashboard panel 上直接搜尋／列出 trace（只有 Explore 支援 TraceQL 搜尋），所以查看 trace 列表仍需使用 Explore 或透過這組 log 連結。
+- Request rate 與 p95 panel 依 `service_name` 與 `http_route` 分組並顯示在圖例，選取多個服務時才能分辨出哪條線屬於哪個服務。
+- Dashboard 新增 `HTTP request duration heatmap`，用既有的 `http_server_request_duration_seconds_bucket` 直方圖畫出延遲分佈，不需要額外的 metrics 來源。
 
 這是單一副本的開發環境。Prometheus、Loki、Tempo 和 Grafana 都使用 `emptyDir`，Pod 重建後歷史資料與 Grafana 本機設定會消失。Grafana 的預設帳密是 `admin`／`admin`，只可在受控的本機或測試叢集使用。
 
@@ -55,13 +58,15 @@ for title in trace-one trace-two trace-three; do
 done
 ```
 
-等待一個 Prometheus scrape interval 後，dashboard 的 service 下拉選單應出現 `todo-bff` 與 `todo-api`。選擇其中一個服務後，可看到 request rate、p95 latency、5xx ratio 與 application logs。
+等待一個 Prometheus scrape interval 後，dashboard 的 service 下拉選單應出現 `todo-bff` 與 `todo-api`。選擇其中一個服務後，可看到 request rate、p95 latency、延遲 heatmap、5xx ratio 與 application logs；選取多個服務時，圖例會同時顯示 `service_name` 與 `http_route`，避免同名 route 混在一起分不清楚。
 
 Tempo datasource 會收到相同請求的 Trace。從 Grafana 左側的 Explore 選擇 Tempo，使用 TraceQL 查詢：
 
 ```traceql
 { resource.service.name = "todo-api" }
 ```
+
+也可以直接從 dashboard 的 Application logs panel 找到 `Todo created.` 這類事件，點開 log detail 後選擇 `TraceID` 連結，Grafana 會以該筆 log 的 `trace_id` 開啟 Tempo，顯示 `todo-bff` 到 `todo-api` 的完整 span，不必自己到 Explore 貼 TraceQL。
 
 目前 Todo 資料存在記憶體，沒有資料庫 span。Loki 收到的 log 由 `todo-api` 的 `Todo created.` 事件產生；沒有將 Todo title、`Authorization` header 或使用者資料寫入 log。
 

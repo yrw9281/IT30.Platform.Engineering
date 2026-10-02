@@ -12,6 +12,13 @@ datasources:
     type: loki
     access: proxy
     url: http://loki.observability.svc:3100
+    jsonData:
+      derivedFields:
+        - name: TraceID
+          matcherType: label
+          matcherRegex: trace_id
+          datasourceUid: tempo
+          url: '$${__value.raw}'
   - name: Tempo
     uid: tempo
     type: tempo

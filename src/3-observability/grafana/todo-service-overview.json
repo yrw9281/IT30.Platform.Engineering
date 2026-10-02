@@ -9,8 +9,8 @@
       "id": 1,
       "targets": [
         {
-          "expr": "sum by (http_route) (rate(http_server_request_duration_seconds_count{service_name=~\"$service\",http_route=~\"$route\"}[$__rate_interval]))",
-          "legendFormat": "{{http_route}}",
+          "expr": "sum by (service_name, http_route) (rate(http_server_request_duration_seconds_count{service_name=~\"$service\",http_route=~\"$route\"}[$__rate_interval]))",
+          "legendFormat": "{{service_name}} · {{http_route}}",
           "refId": "A"
         }
       ],
@@ -24,13 +24,36 @@
       "id": 2,
       "targets": [
         {
-          "expr": "histogram_quantile(0.95, sum by (le, http_route) (rate(http_server_request_duration_seconds_bucket{service_name=~\"$service\",http_route=~\"$route\"}[$__rate_interval])))",
-          "legendFormat": "{{http_route}}",
+          "expr": "histogram_quantile(0.95, sum by (le, service_name, http_route) (rate(http_server_request_duration_seconds_bucket{service_name=~\"$service\",http_route=~\"$route\"}[$__rate_interval])))",
+          "legendFormat": "{{service_name}} · {{http_route}}",
           "refId": "A"
         }
       ],
       "title": "HTTP request duration p95",
       "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] },
+      "gridPos": { "h": 8, "w": 16, "x": 0, "y": 8 },
+      "id": 5,
+      "options": {
+        "calculate": false,
+        "cellGap": 1,
+        "color": { "mode": "scheme", "scheme": "Spectral", "steps": 64 },
+        "yAxis": { "unit": "s" },
+        "legend": { "show": true }
+      },
+      "targets": [
+        {
+          "expr": "sum by (le) (rate(http_server_request_duration_seconds_bucket{service_name=~\"$service\",http_route=~\"$route\"}[$__rate_interval]))",
+          "format": "heatmap",
+          "legendFormat": "{{le}}",
+          "refId": "A"
+        }
+      ],
+      "title": "HTTP request duration heatmap",
+      "type": "heatmap"
     },
     {
       "datasource": { "type": "prometheus", "uid": "prometheus" },
@@ -47,7 +70,7 @@
         },
         "overrides": []
       },
-      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 8 },
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 8 },
       "id": 3,
       "options": {
         "colorMode": "background",
@@ -68,7 +91,7 @@
     },
     {
       "datasource": { "type": "loki", "uid": "loki" },
-      "gridPos": { "h": 8, "w": 16, "x": 8, "y": 8 },
+      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 16 },
       "id": 4,
       "options": {
         "dedupStrategy": "none",
@@ -102,7 +125,7 @@
         "label": "Service",
         "multi": true,
         "name": "service",
-        "query": { "qry": "label_values(http_server_request_duration_seconds_count, service_name)", "refId": "PrometheusVariableQueryEditor-VariableQuery" },
+        "query": "label_values(http_server_request_duration_seconds_count, service_name)",
         "refresh": 1,
         "type": "query"
       },
@@ -114,7 +137,7 @@
         "label": "Route",
         "multi": true,
         "name": "route",
-        "query": { "qry": "label_values(http_server_request_duration_seconds_count{service_name=~\"$service\"}, http_route)", "refId": "PrometheusVariableQueryEditor-VariableQuery" },
+        "query": "label_values(http_server_request_duration_seconds_count{service_name=~\"$service\"}, http_route)",
         "refresh": 1,
         "type": "query"
       }
