@@ -57,6 +57,63 @@ kubectl logs deployment/microservice-operator -n todo -c operator
 
 此階段先檢查所有 Namespace 的既有 CR 輸入，再套用 canonical CRD 的 required `spec` 與 conditions schema；執行者需要相應的讀取與 CRD 更新權限。`Ready` 要求 Deployment 已觀察目前版本、更新副本全部就緒，且 EndpointSlice 有屬於目標 image Pod 的 ready endpoint。Pod image 錯誤或 rollout 超時會寫 `Stalled`；`observedGeneration` 用來區分舊狀態與本次設定。
 
+等待程式可以自動核對 CR、status 與 condition 的 generation，避免 `kubectl wait --for=condition=Ready` 立即讀到上一版 `Ready=True`。D22 正文只示範手動觀察，不列出等待程式：
+
+```bash
+python3 wait-current.py Ready
+# 錯誤 image 演練時，改等目前 generation 的 Stalled=True
+python3 wait-current.py Stalled
+```
+
+程式只需 Python 標準函式庫與可用的 `kubectl`。預設查詢 `todo/todo-api`，等待期間 spec 或 CR UID 再次變更會明確失敗，也不把正在刪除的資源當成 Ready；逾時會列出最後的 status，API 錯誤也不會當成尚未就緒而忽略。
+
+### 使用 CI digest 驗證更新
+
+D22 正文使用已確認來源的 CI image reference，不要求從 container runtime 擷取 digest。若已有服務合約的 `todo-api.yaml`，在同一個終端機先保存原 image 和資源 UID：
+
+```bash
+original_image=$(kubectl get microservice todo-api -n todo -o jsonpath='{.spec.image}')
+deployment_uid=$(kubectl get deployment todo-api -n todo -o jsonpath='{.metadata.uid}')
+service_uid=$(kubectl get service todo-api -n todo -o jsonpath='{.metadata.uid}')
+```
+
+將 `todo-api.yaml` 的 `spec.image` 改成 CI 產出的 Todo API 完整 digest reference，其餘欄位不變。以下會直接修改測試叢集，不是 Git PR／Argo CD 路徑的整合驗證；等待可使用本目錄的 `wait-current.py`：
+
+```bash
+kubectl apply -f todo-api.yaml
+python3 wait-current.py Ready
+kubectl get deployment todo-api -n todo \
+  -o jsonpath='{.spec.template.spec.containers[0].image}{"\n"}'
+test "$(kubectl get microservice todo-api -n todo -o jsonpath='{.spec.image}')" = "$(kubectl get deployment todo-api -n todo -o jsonpath='{.spec.template.spec.containers[0].image}')"
+test "$deployment_uid" = "$(kubectl get deployment todo-api -n todo -o jsonpath='{.metadata.uid}')"
+test "$service_uid" = "$(kubectl get service todo-api -n todo -o jsonpath='{.metadata.uid}')"
+```
+
+正文的手動查詢會同時列出 CR generation、status 的 observed generation 與 conditions。要確認它們對應本次提交，不能只看到舊的 `Ready=True` 就繼續：
+
+```bash
+kubectl get microservice todo-api -n todo \
+  -o jsonpath='{.metadata.generation}{"\n"}{.status.observedGeneration}{"\n"}{.status.conditions}{"\n"}'
+```
+
+若要演練錯誤 image，先保留同一個終端機的 `original_image`，再執行：
+
+```bash
+kubectl patch microservice todo-api -n todo --type=merge \
+  -p '{"spec":{"image":"ghcr.io/yrw9281/it30-todo-api:operator-missing-image"}}'
+kubectl get microservice todo-api -n todo -o yaml
+kubectl get deployment,pods -n todo -l app=todo-api
+```
+
+核對本次 generation 的 `Stalled=True`；可使用 `python3 wait-current.py Stalled`。無論等待成功或失敗，都要還原：
+
+```bash
+kubectl patch microservice todo-api -n todo --type=merge \
+  -p "{\"spec\":{\"image\":\"$original_image\"}}"
+```
+
+任一命令失敗都應先排查。還原後核對目前 generation 的 `Ready=True`，也還原本機 YAML；沒有 CI digest 時可略過更新，直接沿用已就緒版本測試失敗與恢復。原有 `tests/check_rollout.sh` 則保留 Pod `imageID` 擷取方式，供完整叢集測試使用，不取代 CI 來源檢查。
+
 ## 執行限制與刪除行為
 
 - Operator 以 `--namespace=todo --standalone` 執行，單副本、`Recreate`；沒有 leader election 或 HA，請勿增加 replicas。
@@ -74,3 +131,17 @@ bash -n deploy.sh
 ```
 
 `tests/check_cluster.py` 是會寫入叢集的驗證，不是單元測試：會更新正式 Todo CR 的 image、建立短暫 CR、刪除測試 Service、重啟 Operator，並在結束時還原原始 image。它先拒絕已存在的測試名稱；仍只應在核准的維護時段執行。測試涵蓋 UID 保留、image 失敗、timer 補回、所有權衝突、garbage collection，以及重啟後的新 resume log，避免把重啟前的 `Ready` 當作恢復證據。
+
+其中 digest 與錯誤 image 測試會呼叫 `tests/check_rollout.sh`，使用 shell 擷取 runtime digest 及 patch；腳本用 EXIT trap 還原原 image。`imageID` 沒有可用的 `@sha256:` 格式時會明確失敗，不自行猜測 digest。
+
+```bash
+python3 tests/check_cluster.py
+```
+
+`tests/test_articles.py` 比對 D20 的 handler 與部署節錄、D21 的資源管理節錄、D22 的副本檢查、conditions 表與 generation 範例，並檢查操作指令、shell 語法及每篇不超過 150 行。文章只展示關鍵片段與觀察方式，不提供從零安裝完整 Operator 的全部檔案，也不依賴未公開的 repository 連結；來源行為仍由其他單元測試驗證。
+
+若需要重跑事件與資源管理兩個中間階段，可執行下列叢集測試。它會切換 Operator 版本，以短暫 CR 檢查 create／spec update／resume、`ResourcesApplied`、Service 補回及 owner 衝突，最後恢復完整 Operator；期間不修改正式 Todo CR 的 spec，但會短暫停用健康觀察：
+
+```bash
+python3 tests/check_stages_cluster.py
+```

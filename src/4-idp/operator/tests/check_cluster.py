@@ -3,6 +3,13 @@ import json
 import subprocess
 import time
 from typing import Callable
+import importlib.util
+from pathlib import Path
+
+spec_loader = importlib.util.spec_from_file_location(
+    "wait_current", Path(__file__).resolve().parents[1] / "wait-current.py")
+wait_current = importlib.util.module_from_spec(spec_loader)
+spec_loader.loader.exec_module(wait_current)
 
 
 def kubectl(*args: str, data: dict | None = None) -> str:
@@ -28,10 +35,7 @@ def wait(check: Callable[[], bool], description: str, timeout: int = 180) -> Non
 
 def ready() -> bool:
     resource = get("microservice", "todo-api")
-    status = resource.get("status", {})
-    return (status.get("observedGeneration") == resource["metadata"]["generation"]
-            and any(item["type"] == "Ready" and item["status"] == "True"
-                    for item in status.get("conditions", [])))
+    return wait_current.current_condition(resource, "Ready")
 
 
 def set_spec(spec: dict) -> None:
@@ -60,32 +64,9 @@ def main() -> None:
     repair_created = owner_service_created = owner_cr_created = False
     try:
         wait(ready, "adopted workload is Ready at current generation")
-        uid = original["metadata"]["uid"]
-        pods = json.loads(kubectl("get", "pods", "-n", "todo", "-l",
-                                 f"platform.example.io/microservice-uid={uid}", "-o", "json"))
-        image_id = pods["items"][0]["status"]["containerStatuses"][0]["imageID"]
-        digest = image_id.split("@sha256:", 1)[1]
-        image = spec["image"].split("@", 1)[0].rsplit(":", 1)[0] + "@sha256:" + digest
-        set_spec({**spec, "image": image})
-        wait(ready, "digest update completes without replacing Deployment or Service")
+        subprocess.run(["bash", str(Path(__file__).with_name("check_rollout.sh"))], check=True)
         assert get("deployment", "todo-api")["metadata"]["uid"] == deployment_uid
         assert get("service", "todo-api")["metadata"]["uid"] == service_uid
-
-        set_spec({**spec, "image": "ghcr.io/yrw9281/it30-todo-api:operator-missing-image"})
-
-        def failed_rollout() -> bool:
-            resource = get("microservice", "todo-api")
-            status = resource.get("status", {})
-            conditions = {item["type"]: item for item in status.get("conditions", [])}
-            return (status.get("observedGeneration") == resource["metadata"]["generation"]
-                    and conditions.get("Ready", {}).get("status") == "False"
-                    and conditions.get("Stalled", {}).get("status") == "True"
-                    and conditions["Ready"]["reason"] in ("ErrImagePull", "ImagePullBackOff"))
-
-        wait(failed_rollout, "missing image is Stalled, not stale Ready")
-        assert get("deployment", "todo-api")["status"].get("availableReplicas", 0) >= 2
-        print("PASS: previous replicas remain available during failed update")
-        set_spec(spec)
         wait(ready, "original image recovers")
 
         create_cr("operator-repair-check", spec)
