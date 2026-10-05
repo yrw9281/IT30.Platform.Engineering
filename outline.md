@@ -75,7 +75,7 @@ DDD? Clean Architecture? Microservices? 帶你用.NET實作打造一個現代化
 | **Day 18** | 設計 `Microservice` CRD：把 Kubernetes 設定收進平台合約 | 以現有 CRD 的 Image、Port 合約為起點，規劃環境變數與狀態欄位，區分已存在的 schema 與尚未實作的擴充。 |
 | **Day 19** | Operator 與 Kopf：從服務合約到控制迴路 | 合併事件處理與資源合約的概念，以 Todo API 說明 Kopf handler、重試、所有權、平台預設與狀態回報的分工，銜接 CRD 與實作。 |
 | **Day 20** | 用 Kopf 接收 `Microservice` 事件並部署 Operator | 在既有 `todo` Namespace 部署單一副本的 Kopf Operator，實作 create、spec update 與 resume handler，以 log 和 `Accepted` 狀態確認事件處理；此步尚不管理工作負載。 |
-| **Day 21** | 讓 Operator 管理 Todo API 的 Deployment 與 Service | 將 CR 轉成工作負載與 OTel 預設，明確接管既有 Todo API，實作建立／更新、所有權檢查與定期補回；`ResourcesApplied` 只代表設定已提交，不宣稱健康。 |
+| **Day 21** | 讓 Operator 管理 Todo API 的 Deployment 與 Service | 將 CR 轉成工作負載與 OTel 預設，操作前確認既有同名 Deployment／Service 已移除，由 Operator 重新建立 Todo API，實作建立／更新、所有權檢查與定期補回；`ResourcesApplied` 只代表設定已提交，不宣稱健康。 |
 | **Day 22** | 讓 Operator 回報新版是否就緒 | 擴充 CRD conditions，實作 rollout、Pod 與 Service endpoint 的健康判斷、generation 防護與 Ready／Stalled 回報；驗證 digest 更新、錯誤 image、資源補回和重啟恢復。 |
 | **Day 23** | 用 Backstage Software Templates 收集服務設定 | 介紹 Software Catalog 與 Software Templates 的不同責任，將開發者輸入轉成受控的 `Microservice` 設定；模板沿用既有 `todo` Namespace，Git PR 與 CR GitOps 仍未串接。 |
 | **Day 24** | 用 Backstage 提出 GitOps 設定 Pull Request | 說明模板如何提出 Git 變更，並在設定儲存庫執行獨立的 YAML／CRD schema 檢查與審查；不把 PR 建立誤認為部署完成。 |

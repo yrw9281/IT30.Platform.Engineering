@@ -31,9 +31,19 @@ kubectl get microservice todo-api -n todo -o yaml
 
 canonical CRD 包含最新的 schema，但 observer 仍只寫 `Accepted`。升級舊 CRD 前可用 `kubectl get microservices -A -o json | python3 validate_crs.py` 檢查既有輸入；這只讀取資料，不修改 CR。它檢查 `spec`、image、port，不取代 API Server 的完整 schema／admission 驗證。
 
-### Day 21：先明確接管，再啟用資源管理
+### Day 21：由 Operator 建立資源
 
-使用 Python 3.12 環境並安裝 `requirements.txt`。先停用或移除其他 controller 對原本子資源的管理：目前 Argo CD 的 `todo` Application 仍讀取 `src/1-kubernetes/kind`，尚未改成同步 CR，不能讓它與 Operator 同時管理同一組 Deployment／Service。`adopt.py` 會拒絕帶有 Argo CD tracking annotation／label 的資源，但無法證明所有其他外部控制器都已停用。
+D21 文章採用重新建立工作負載的方式。啟用前，確認 `todo/todo-api` CR 已存在、同名 Deployment／Service 不存在，且沒有 Argo CD 或其他 controller 繼續建立或修改這兩個資源。移除舊工作負載會中斷服務，並遺失 Todo 程序記憶體中的資料，應先確認可以移除並備份需要保留的資料。
+
+```bash
+bash deploy.sh day21
+kubectl get microservice todo-api -n todo -o yaml
+kubectl get deployment,service todo-api -n todo -o yaml
+```
+
+### 可選：接管既有 Todo API
+
+若要保留既有 Deployment／Service，可使用一次性的 `adopt.py`，這不是 D21 文章的必要步驟。使用 Python 3.12 環境並安裝 `requirements.txt`，先解除其他 controller 對原本子資源的管理，但保留資源；不能讓 Argo CD 與 Operator 同時管理同一組 Deployment／Service。`adopt.py` 會拒絕帶有 Argo CD tracking annotation／label 的資源，但無法證明所有其他外部控制器都已停用。
 
 ```bash
 python -m pip install -r requirements.txt
@@ -138,7 +148,7 @@ bash -n deploy.sh
 python3 tests/check_cluster.py
 ```
 
-`tests/test_articles.py` 比對 D20 的 handler 與部署節錄、D21 的資源管理節錄、D22 的副本檢查、conditions 表與 generation 範例，並檢查操作指令、shell 語法及每篇不超過 150 行。文章只展示關鍵片段與觀察方式，不提供從零安裝完整 Operator 的全部檔案，也不依賴未公開的 repository 連結；來源行為仍由其他單元測試驗證。
+`tests/test_articles.py` 比對 D20 的 handler 與部署節錄、D21 的資源管理流程、完整的 `read_child`／`check_owner`／`ensure` 函式與錯誤處理節錄，以及 D22 的副本檢查、conditions 表與 generation 範例。它也檢查操作指令、shell 語法，並保留 D20／D22 不超過 150 行的限制；D21 展開函式教學，不再套用這個行數限制。三篇文章均不使用折疊區塊。文章只展示本日相關的函式、關鍵片段與觀察方式，不提供從零安裝完整 Operator 的全部檔案，也不依賴未公開的 repository 連結；來源行為仍由其他單元測試驗證。
 
 若需要重跑事件與資源管理兩個中間階段，可執行下列叢集測試。它會切換 Operator 版本，以短暫 CR 檢查 create／spec update／resume、`ResourcesApplied`、Service 補回及 owner 衝突，最後恢復完整 Operator；期間不修改正式 Todo CR 的 spec，但會短暫停用健康觀察：
 
