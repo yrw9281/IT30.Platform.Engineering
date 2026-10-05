@@ -116,7 +116,12 @@ class ArticleSourceTests(unittest.TestCase):
                 self.assertNotRegex(
                     text, r"(?:完整實作|完整程式|原始碼).*(?:repository|儲存庫)")
                 self.assertNotIn("github.com/yrw9281/IT30.Platform.Engineering", text)
-                self.assertIn("TODO(assets)", text)
+                images = re.findall(r"!\[[^\]]+\]\((\.\./assets/[^)]+)\)", text)
+                self.assertTrue("TODO(assets)" in text or images,
+                                f"D{day:02} needs an asset placeholder or image")
+                for image in images:
+                    self.assertTrue((DOCS / image).is_file(),
+                                    f"D{day:02} image does not exist: {image}")
 
     def test_shell_syntax_and_article_boundaries(self):
         subprocess.run(["bash", "-n", str(ROOT / "tests" / "check_rollout.sh")], check=True)
