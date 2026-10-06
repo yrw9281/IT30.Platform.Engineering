@@ -67,7 +67,7 @@ kubectl logs deployment/microservice-operator -n todo -c operator
 
 此階段先檢查所有 Namespace 的既有 CR 輸入，再套用 canonical CRD 的 required `spec` 與 conditions schema；執行者需要相應的讀取與 CRD 更新權限。`Ready` 要求 Deployment 已觀察目前版本、更新副本全部就緒，且 EndpointSlice 有屬於目標 image Pod 的 ready endpoint。Pod image 錯誤或 rollout 超時會寫 `Stalled`；`observedGeneration` 用來區分舊狀態與本次設定。
 
-等待程式可以自動核對 CR、status 與 condition 的 generation，避免 `kubectl wait --for=condition=Ready` 立即讀到上一版 `Ready=True`。D22 正文只示範手動觀察，不列出等待程式：
+等待程式可以自動核對 CR、status 與 condition 的 generation，避免 `kubectl wait --for=condition=Ready` 立即讀到上一版 `Ready=True`。D22 正文聚焦健康判斷、狀態產生與處理流程，只保留一個狀態查詢指令；以下演練與等待程式留在本文件：
 
 ```bash
 python3 wait-current.py Ready
@@ -79,7 +79,7 @@ python3 wait-current.py Stalled
 
 ### 使用 CI digest 驗證更新
 
-D22 正文使用已確認來源的 CI image reference，不要求從 container runtime 擷取 digest。若已有服務合約的 `todo-api.yaml`，在同一個終端機先保存原 image 和資源 UID：
+以下使用已確認來源的 CI image reference，不要求從 container runtime 擷取 digest。只在可接受服務中斷與 Todo 記憶體資料遺失的測試環境執行；先確認目前 generation 的 `Ready=True`。若已有服務合約的 `todo-api.yaml`，在同一個終端機先保存原 image 和資源 UID：
 
 ```bash
 original_image=$(kubectl get microservice todo-api -n todo -o jsonpath='{.spec.image}')
@@ -87,7 +87,7 @@ deployment_uid=$(kubectl get deployment todo-api -n todo -o jsonpath='{.metadata
 service_uid=$(kubectl get service todo-api -n todo -o jsonpath='{.metadata.uid}')
 ```
 
-將 `todo-api.yaml` 的 `spec.image` 改成 CI 產出的 Todo API 完整 digest reference，其餘欄位不變。以下會直接修改測試叢集，不是 Git PR／Argo CD 路徑的整合驗證；等待可使用本目錄的 `wait-current.py`：
+任一查詢失敗或原 image 為空時，停止並排查，不要繼續演練。將 `todo-api.yaml` 的 `spec.image` 改成 CI 產出的 Todo API 完整 digest reference，包含 image repository、`@sha256:` 與 64 位小寫十六進位 digest，其餘欄位不變。採用前核對 GHCR package 與受信任 CI run，reference 必須與目前不同才會觸發設定更新。以下會直接修改測試叢集，不是 Git PR／Argo CD 路徑的整合驗證；等待可使用本目錄的 `wait-current.py`：
 
 ```bash
 kubectl apply -f todo-api.yaml
@@ -99,14 +99,14 @@ test "$deployment_uid" = "$(kubectl get deployment todo-api -n todo -o jsonpath=
 test "$service_uid" = "$(kubectl get service todo-api -n todo -o jsonpath='{.metadata.uid}')"
 ```
 
-正文的手動查詢會同時列出 CR generation、status 的 observed generation 與 conditions。要確認它們對應本次提交，不能只看到舊的 `Ready=True` 就繼續：
+也可以手動查詢 CR generation、status 的 observed generation 與 conditions。要確認它們對應本次提交，不能只看到舊的 `Ready=True` 就繼續：
 
 ```bash
 kubectl get microservice todo-api -n todo \
   -o jsonpath='{.metadata.generation}{"\n"}{.status.observedGeneration}{"\n"}{.status.conditions}{"\n"}'
 ```
 
-若要演練錯誤 image，先保留同一個終端機的 `original_image`，再執行：
+若要演練錯誤 image，先保留同一個終端機的 `original_image`，確認 `operator-missing-image` tag 確實不存在，再執行：
 
 ```bash
 kubectl patch microservice todo-api -n todo --type=merge \
@@ -115,7 +115,7 @@ kubectl get microservice todo-api -n todo -o yaml
 kubectl get deployment,pods -n todo -l app=todo-api
 ```
 
-核對本次 generation 的 `Stalled=True`；可使用 `python3 wait-current.py Stalled`。無論等待成功或失敗，都要還原：
+核對本次 generation 的 `Ready=False`、`Stalled=True`，以及 `ErrImagePull` 或 `ImagePullBackOff` 原因；可使用 `python3 wait-current.py Stalled`。舊副本可能仍可用，不能因此認定新版就緒。若等待期間 CR 換版或重建，停止並核對新需求。無論等待成功或失敗，都要還原：
 
 ```bash
 kubectl patch microservice todo-api -n todo --type=merge \
@@ -123,6 +123,8 @@ kubectl patch microservice todo-api -n todo --type=merge \
 ```
 
 任一命令失敗都應先排查。還原後核對目前 generation 的 `Ready=True`，也還原本機 YAML；沒有 CI digest 時可略過更新，直接沿用已就緒版本測試失敗與恢復。原有 `tests/check_rollout.sh` 則保留 Pod `imageID` 擷取方式，供完整叢集測試使用，不取代 CI 來源檢查。
+
+資源補回測試沿用 D21 的暫時 CR：刪除測試 Service 後，比對補回前後的 UID，並確認同一版 CR 最後回報 `Ready=True`。不要刪除正式 Todo Service，也不要覆寫已存在的測試 CR。重啟測試要查看新 Operator Pod 的 resume log，不能只看重啟前留下的 `Ready`。測試結束後，讓 Operator 保持運作，再刪除暫時 CR 並等待受管資源正常清理。
 
 ## 執行限制與刪除行為
 
@@ -148,7 +150,7 @@ bash -n deploy.sh
 python3 tests/check_cluster.py
 ```
 
-`tests/test_articles.py` 比對 D20 的 handler 與部署節錄、D21 的資源管理流程、完整的 `read_child`／`check_owner`／`ensure` 函式與錯誤處理節錄，以及 D22 的副本檢查、conditions 表與 generation 範例。它也檢查操作指令、shell 語法，並保留 D20／D22 不超過 150 行的限制；D21 展開函式教學，不再套用這個行數限制。三篇文章均不使用折疊區塊。文章只展示本日相關的函式、關鍵片段與觀察方式，不提供從零安裝完整 Operator 的全部檔案，也不依賴未公開的 repository 連結；來源行為仍由其他單元測試驗證。
+`tests/test_articles.py` 比對 D20 的 handler 與部署節錄、D21 的資源管理流程、完整的 `read_child`／`check_owner`／`ensure` 函式與錯誤處理節錄，以及 D22 的 `health`、`make_status` 與 handler 呼叫片段。D22 另檢查 conditions 表、回報 generation 與 schema，並確認正文只保留一個狀態查詢指令。它也檢查操作指令、shell 語法，並保留 D20／D22 不超過 150 行的限制；D21 展開函式教學，不再套用這個行數限制。三篇文章均不使用折疊區塊。文章只展示本日相關的函式、關鍵片段與觀察方式，不提供從零安裝完整 Operator 的全部檔案，也不依賴未公開的 repository 連結；來源行為仍由其他單元測試驗證。
 
 若需要重跑事件與資源管理兩個中間階段，可執行下列叢集測試。它會切換 Operator 版本，以短暫 CR 檢查 create／spec update／resume、`ResourcesApplied`、Service 補回及 owner 衝突，最後恢復完整 Operator；期間不修改正式 Todo CR 的 spec，但會短暫停用健康觀察：
 

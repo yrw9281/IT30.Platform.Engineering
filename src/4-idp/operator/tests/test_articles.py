@@ -1,5 +1,4 @@
 import ast
-from copy import deepcopy
 from pathlib import Path
 import re
 import subprocess
@@ -79,11 +78,23 @@ class ArticleSourceTests(unittest.TestCase):
             [ast.dump(node, include_attributes=False) for node in article],
             [ast.dump(node, include_attributes=False) for node in handler.body])
 
-    def test_replica_check_excerpt_matches_health(self):
-        self.assertEqual(len(blocks(22, "python")), 1)
-        excerpt = blocks(22, "python")[0].strip()
-        ast.parse(excerpt)
-        self.assertIn(indent(excerpt, " " * 4), (ROOT / "resources.py").read_text())
+    def test_health_and_status_excerpts_match_source(self):
+        examples = blocks(22, "python")
+        self.assertEqual(len(examples), 4)
+        source = ast.parse((ROOT / "resources.py").read_text())
+        functions = {node.name: node for node in source.body
+                     if isinstance(node, ast.FunctionDef)}
+        health = ast.parse("\n".join(examples[:2])).body
+        self.assertEqual(
+            [ast.dump(node, include_attributes=False) for node in health],
+            [ast.dump(node, include_attributes=False) for node in functions["health"].body])
+        status = ast.parse(examples[2]).body
+        self.assertEqual(len(status), 1)
+        self.assertEqual(ast.dump(status[0], include_attributes=False),
+                         ast.dump(functions["make_status"], include_attributes=False))
+        integration = examples[3].strip()
+        ast.parse(integration)
+        self.assertIn(indent(integration, " " * 12), (ROOT / "handlers.py").read_text())
 
     def test_conditions_table_matches_status_builder(self):
         text = (DOCS / "D22.md").read_text()
@@ -99,34 +110,29 @@ class ArticleSourceTests(unittest.TestCase):
             expected.append((conditions["Ready"], conditions["Stalled"], status["phase"]))
         self.assertEqual(rows, expected)
 
-    def test_stale_generation_example_matches_source_and_schema(self):
-        example = yaml.safe_load(blocks(22, "yaml")[0])
+    def test_reported_generation_and_conditions_match_schema(self):
         resource = yaml.safe_load((CRD / "todo-api.yaml").read_text())
-        resource["metadata"]["generation"] = 3
+        resource["metadata"]["generation"] = 4
         status = make_status(resource, True, False, "RolloutComplete", "Example", True)
-        self.assertEqual(example["metadata"]["generation"], 4)
-        for key in ("phase", "observedGeneration"):
-            self.assertEqual(example["status"][key], status[key])
-        ready = next(item for item in status["conditions"] if item["type"] == "Ready")
-        shown = example["status"]["conditions"][0]
-        self.assertEqual(shown, {key: ready[key] for key in shown})
-        self.assertNotEqual(shown["observedGeneration"], example["metadata"]["generation"])
-        current = deepcopy(resource)
-        current["metadata"]["generation"] = 4
-        self.assertEqual(make_status(
-            current, True, False, "RolloutComplete", "Example", True)["observedGeneration"], 4)
+        self.assertEqual(status["observedGeneration"], 4)
         schema = yaml.safe_load((CRD / "microservice-crd.yaml").read_text())[
             "spec"]["versions"][0]["schema"]["openAPIV3Schema"]["properties"]["status"]
-        self.assertTrue(set(example["status"]) <= set(schema["properties"]))
+        self.assertTrue(set(status) <= set(schema["properties"]))
         conditions = schema["properties"]["conditions"]
         self.assertEqual(conditions["x-kubernetes-list-map-keys"], ["type"])
-        self.assertTrue(set(shown) <= set(conditions["items"]["properties"]))
-        self.assertIn(shown["status"], conditions["items"]["properties"]["status"]["enum"])
+        for condition in status["conditions"]:
+            self.assertEqual(condition["observedGeneration"], 4)
+            self.assertTrue(set(conditions["items"]["required"]) <= set(condition))
+            self.assertTrue(set(condition) <= set(conditions["items"]["properties"]))
+            self.assertIn(condition["status"],
+                          conditions["items"]["properties"]["status"]["enum"])
         text = (DOCS / "D22.md").read_text()
-        for key in conditions["items"]["required"]:
+        for key in ("metadata.generation", "status.observedGeneration", "observedGeneration"):
             self.assertIn(f"`{key}`", text)
 
-    def test_rollout_commands_match_operational_readme(self):
+    def test_status_query_matches_operational_readme(self):
+        self.assertEqual(blocks(22, "bash"),
+                         ["kubectl get microservice todo-api -n todo -o yaml\n"])
         readme = (ROOT / "README.md").read_text().replace("\\\n", " ")
         normalized = " ".join(readme.split())
         for example in blocks(22, "bash"):
