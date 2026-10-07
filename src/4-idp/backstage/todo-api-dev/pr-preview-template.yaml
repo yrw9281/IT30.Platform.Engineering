@@ -1,0 +1,62 @@
+apiVersion: scaffolder.backstage.io/v1beta3
+kind: Template
+metadata:
+  name: todo-api-dev-pr-preview
+  title: Todo API Dev PR Input Preview (D24)
+  description: Display the rendered configuration and planned PR action inputs without calling GitHub or creating a PR.
+  tags:
+    - todo
+    - preview
+spec:
+  owner: todo
+  type: service
+  parameters:
+    - title: Todo API image update
+      required:
+        - digest
+      additionalProperties: false
+      properties:
+        digest:
+          title: Image digest
+          description: "Enter the 64 lowercase hex characters after sha256:, without the prefix."
+          type: string
+          minLength: 64
+          maxLength: 64
+          pattern: "^[0-9a-f]{64}$"
+  steps:
+    - id: render
+      name: Render Todo API Dev configuration
+      action: fetch:template
+      input:
+        url: ./skeleton
+        values:
+          digest: ${{ parameters.digest }}
+    - id: inspect
+      name: Preview PR inputs (no PR created)
+      action: debug:log
+      input:
+        listWorkspace: with-contents
+        message: |
+          PR INPUT PREVIEW ONLY. No GitHub action was executed.
+          Planned action: publish:github:pull-request
+          repoUrl: github.com?owner=yrw9281&repo=repo-config
+          branchName: backstage/todo-api/dev/${{ parameters.digest }}
+          targetBranchName: main
+          sourcePath: .
+          targetPath: apps/todo-api/overlays/dev
+          title: Propose Todo API image for Dev
+          description: Review the image digest and environment before merging.
+  output:
+    text:
+      - title: PR input preview (no PR created)
+        content: |
+          This previews the PR action inputs using `debug:log`.
+          It does not call `publish:github:pull-request` or create a Git branch or PR.
+
+          - Repository: `yrw9281/repo-config` (planned destination, not yet connected)
+          - Proposed branch: `backstage/todo-api/dev/${{ parameters.digest }}`
+          - Target branch: `main`
+          - Target directory: `apps/todo-api/overlays/dev`
+
+          Open the logs for "Preview PR inputs (no PR created)"
+          to view the parameters and actual rendered files.

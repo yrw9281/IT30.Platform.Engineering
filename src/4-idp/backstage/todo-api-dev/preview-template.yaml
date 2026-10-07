@@ -1,0 +1,48 @@
+apiVersion: scaffolder.backstage.io/v1beta3
+kind: Template
+metadata:
+  name: todo-api-dev-preview
+  title: Todo API Dev Config Preview (D23)
+  description: Render Microservice YAML from an image digest without creating a PR or deploying the service.
+  tags:
+    - todo
+    - preview
+spec:
+  owner: todo
+  type: service
+  parameters:
+    - title: Todo API image update
+      required:
+        - digest
+      additionalProperties: false
+      properties:
+        digest:
+          title: Image digest
+          description: "Enter the 64 lowercase hex characters after sha256:, without the prefix."
+          type: string
+          minLength: 64
+          maxLength: 64
+          pattern: "^[0-9a-f]{64}$"
+  steps:
+    - id: render
+      name: Render Microservice YAML
+      action: fetch:template
+      input:
+        url: ./skeleton
+        values:
+          digest: ${{ parameters.digest }}
+    - id: inspect
+      name: Inspect rendered files (no deployment)
+      action: debug:log
+      input:
+        message: Preview only. No Git changes or Kubernetes writes were performed.
+        listWorkspace: with-contents
+  output:
+    text:
+      - title: Config preview complete
+        content: |
+          The Todo API Dev configuration has been rendered. Open the logs for
+          "Inspect rendered files (no deployment)" to view the actual
+          `microservice.yaml` and `kustomization.yaml` contents.
+
+          This task only renders and displays files. No PR was created and no service was deployed.

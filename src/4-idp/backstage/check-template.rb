@@ -19,7 +19,7 @@ destination = steps.last.fetch("input")
 raise "Config destination is not explicitly scoped" unless destination.values_at("repoUrl", "targetBranchName", "targetPath") == ["github.com?owner=yrw9281&repo=repo-config", "main", "apps/todo-api/overlays/dev"]
 
 image_file = File.join(root, "todo-api-dev/skeleton/microservice.yaml")
-rendered = File.read(image_file).sub("{{ values.digest }}", "a" * 64)
+rendered = File.read(image_file).sub("${{ values.digest }}", "a" * 64)
 raise "Missing digest substitution" if rendered.include?("{{")
 resource = YAML.safe_load(rendered)
 raise "Wrong image" unless resource.dig("spec", "image") == "ghcr.io/yrw9281/it30-todo-api@sha256:#{"a" * 64}"
@@ -28,4 +28,24 @@ raise "Catalog and template namespaces differ" unless catalog.dig("metadata", "a
 raise "Unsupported CR field" unless (resource.fetch("spec").keys - %w[image port]).empty?
 raise "Missing Kustomize resource" unless YAML.load_file(File.join(root, "todo-api-dev/skeleton/kustomization.yaml")).fetch("resources") == ["microservice.yaml"]
 
-puts "Template structure and rendered YAML verified locally; Backstage, Git and Kubernetes were not exercised."
+%w[preview-template.yaml pr-preview-template.yaml].each do |filename|
+  preview = YAML.load_file(File.join(root, "todo-api-dev", filename))
+  preview_form = preview.fetch("spec").fetch("parameters").first
+  preview_field = preview_form.fetch("properties").fetch("digest")
+  raise "Preview digest rules differ: #{filename}" unless preview_field.values_at(
+    "type", "minLength", "maxLength", "pattern") == field.values_at(
+      "type", "minLength", "maxLength", "pattern")
+  raise "Preview must require only digest" unless preview_form.fetch("required") == ["digest"]
+  raise "Preview permits extra parameters" unless preview_form.fetch("additionalProperties") == false
+  actions = preview.fetch("spec").fetch("steps").map { |step| step.fetch("action") }
+  raise "Preview can perform external writes" unless actions == ["fetch:template", "debug:log"]
+  raise "Preview render differs" unless preview.dig("spec", "steps", 0, "input") == steps.first.fetch("input")
+end
+proposal = YAML.load_file(File.join(root, "todo-api-dev/pr-preview-template.yaml"))
+message = proposal.dig("spec", "steps", 1, "input", "message")
+%w[repoUrl branchName targetBranchName sourcePath targetPath title description].each do |key|
+  raise "PR preview destination differs: #{key}" unless message.include?(
+    "#{key}: #{destination.fetch(key)}")
+end
+
+puts "Template and preview structure verified locally; real Backstage rendering is checked separately."

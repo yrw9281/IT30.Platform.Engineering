@@ -111,9 +111,7 @@ cd app
 yarn tsc && yarn build:backend
 yarn build-image
 docker push ghcr.io/yrw9281/it30-idp-backstage:demo
-kubectl apply -f ../k8s/deployment.yaml
-kubectl -n backstage rollout restart deployment/backstage
-kubectl rollout status deployment/backstage -n backstage --timeout=180s
+bash ../deploy-templates.sh
 ```
 
 `yarn build-image` loads `ghcr.io/yrw9281/it30-idp-backstage:demo` into the local Docker engine. It does not push the image or change the cluster.
@@ -122,4 +120,46 @@ kubectl rollout status deployment/backstage -n backstage --timeout=180s
 
 The [Kopf Operator](../operator/README.md) now manages the adopted Todo API in the existing `todo` namespace and reports conditions. The Template and Catalog target that same namespace without creating another environment. The planned `repo-config`, its Dev directory and the Argo CD application for it remain unconnected to the Template. Do not run the PR action against a real repository until those dependencies and review rules are in place. Rendering the skeleton or observing healthy existing Pods does not prove that a proposed digest has been deployed.
 
-Run the local structure/render check with `ruby src/4-idp/backstage/check-template.rb`. This parses the Backstage YAML, substitutes a test digest and checks the resulting `Microservice` resource, including its `todo` namespace and agreement with the Catalog lookup. It does not execute Backstage, open a PR or contact a Kubernetes cluster.
+Run the local structure check with `ruby src/4-idp/backstage/check-template.rb`. This parses the Backstage YAML, substitutes a test digest and checks the resulting `Microservice` resource, including its `todo` namespace and agreement with the Catalog lookup. It also checks that both previews use the same inputs and only run `fetch:template` and `debug:log`. This is not a test of the actual Backstage renderer.
+
+### D23 and D24 screenshot previews
+
+Two templates are registered for safe UI demonstrations:
+
+| Template title | Purpose | Result |
+| --- | --- | --- |
+| Todo API Dev Config Preview (D23) | Collect a digest and render the Todo files | Actual YAML in step logs |
+| Todo API Dev PR Input Preview (D24) | Render the files and display the intended PR inputs | Destination/branch/path in logs and task output; no PR |
+
+The canonical `todo-api-dev/template.yaml` is **not** registered. Neither preview calls a GitHub action or writes to Kubernetes. No GitHub credentials are needed.
+
+From the repository root, install or update the previews in an existing Backstage deployment:
+
+```bash
+ruby src/4-idp/backstage/check-template.rb
+bash src/4-idp/backstage/deploy-templates.sh
+```
+
+The helper displays the current Kubernetes context, creates the template ConfigMap, applies the Deployment/Service and restarts Backstage. The existing connection Secret must already exist. `app-config.templates.yaml` retains the example Catalog, organization and original sample template locations while adding the two preview locations. No image rebuild is needed for changes to these mounted files.
+
+Each file uses a read-only `subPath` mount. Mounting the whole projected ConfigMap directory exposes Kubernetes' `..timestamp` symlinks, which Backstage's safe-path check rejects when fetching the skeleton. `subPath` files do not update inside a running container; rerun the deployment helper after editing a template or skeleton.
+
+After the rollout, start a new port-forward and keep its terminal open:
+
+```bash
+kubectl port-forward -n backstage service/backstage 7007:7007 --address=127.0.0.1
+```
+
+Open `http://127.0.0.1:7007`, sign in as Guest and open **Create**. If the cluster workstation is remote, forward port 7007 through VS Code first.
+
+For D23, choose the settings preview and capture its digest form. Enter a short value such as `abc`, try to continue and capture the validation error. Then replace it with the 64 lowercase hex characters from a Todo image digest, without `sha256:`, and create the preview task. Open the `Inspect rendered files (no deployment)` step's logs and capture `microservice.yaml`, including the image, service name, namespace and port.
+
+For D24, choose the PR-input preview, submit the same digest and capture the `Preview PR inputs (no PR created)` step's logs. Include the planned action, `repoUrl`, `branchName`, `targetBranchName` and `targetPath`. The task output also displays the destination and explicitly states that no PR was created. These screenshots demonstrate the proposed inputs, **not** a GitHub PR, successful checks, review or merge.
+
+The integration check below authenticates as Guest in memory, exercises Backstage's actual dry-run renderer and rejects malformed/extra input. It then creates two safe preview tasks to verify the mounted files are readable and the logs contain the rendered image and intended destination. It does not print or persist the guest token.
+
+```bash
+ruby src/4-idp/backstage/check-preview.rb
+```
+
+An optional first argument supplies the digest to render. The default is a synthetic 64-character value for rendering tests; it does not establish that an image exists. Use a real Todo digest for article screenshots. Task history uses the demo's Pod-local SQLite database and is lost on restart.

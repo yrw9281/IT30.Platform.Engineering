@@ -19,6 +19,16 @@ spec:
         - name: backstage
           image: ghcr.io/yrw9281/it30-idp-backstage:demo
           imagePullPolicy: Always
+          command:
+            - node
+          args:
+            - packages/backend
+            - --config
+            - app-config.yaml
+            - --config
+            - app-config.production.yaml
+            - --config
+            - /app/todo-templates/app-config.templates.yaml
           ports:
             - name: http
               containerPort: 7007
@@ -50,6 +60,42 @@ spec:
               port: http
             initialDelaySeconds: 30
             periodSeconds: 20
+          volumeMounts:
+            - name: todo-templates
+              mountPath: /app/todo-templates/app-config.templates.yaml
+              subPath: app-config.templates.yaml
+              readOnly: true
+            - name: todo-templates
+              mountPath: /app/todo-templates/preview-template.yaml
+              subPath: preview-template.yaml
+              readOnly: true
+            - name: todo-templates
+              mountPath: /app/todo-templates/pr-preview-template.yaml
+              subPath: pr-preview-template.yaml
+              readOnly: true
+            - name: todo-templates
+              mountPath: /app/todo-templates/skeleton/microservice.yaml
+              subPath: skeleton/microservice.yaml
+              readOnly: true
+            - name: todo-templates
+              mountPath: /app/todo-templates/skeleton/kustomization.yaml
+              subPath: skeleton/kustomization.yaml
+              readOnly: true
+      volumes:
+        - name: todo-templates
+          configMap:
+            name: backstage-todo-templates
+            items:
+              - key: app-config.templates.yaml
+                path: app-config.templates.yaml
+              - key: preview-template.yaml
+                path: preview-template.yaml
+              - key: pr-preview-template.yaml
+                path: pr-preview-template.yaml
+              - key: microservice.yaml
+                path: skeleton/microservice.yaml
+              - key: kustomization.yaml
+                path: skeleton/kustomization.yaml
 ---
 apiVersion: v1
 kind: Service
