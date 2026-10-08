@@ -1,0 +1,24 @@
+catalog:
+  locations:
+    - type: file
+      target: ./examples/entities.yaml
+    - type: file
+      target: ./examples/template/template.yaml
+      rules:
+        - allow: [Template]
+    - type: file
+      target: ./examples/org.yaml
+      rules:
+        - allow: [User, Group]
+    - type: file
+      target: /app/todo-templates/preview-template.yaml
+      rules:
+        - allow: [Template]
+    - type: file
+      target: /app/todo-templates/pr-preview-template.yaml
+      rules:
+        - allow: [Template]
+    - type: file
+      target: /app/todo-templates/template.yaml
+      rules:
+        - allow: [Template]

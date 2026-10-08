@@ -16,7 +16,10 @@ raise "Digest pattern is too broad" unless pattern.match?("a" * 64) && !pattern.
 steps = template.fetch("spec").fetch("steps")
 raise "Expected render and review steps" unless steps.map { |step| step.fetch("action") } == ["fetch:template", "publish:github:pull-request"]
 destination = steps.last.fetch("input")
-raise "Config destination is not explicitly scoped" unless destination.values_at("repoUrl", "targetBranchName", "targetPath") == ["github.com?owner=yrw9281&repo=repo-config", "main", "apps/todo-api/overlays/dev"]
+raise "Config destination is not explicitly scoped" unless destination.values_at("repoUrl", "targetBranchName", "targetPath") == ["github.com?owner=yrw9281&repo=IT30.Platform.Engineering", "main", "src/5-config/apps/todo-api/overlays/dev"]
+raise "PR template permits extra parameters" unless form.fetch("additionalProperties") == false
+raise "PR link is not wired" unless template.dig("spec", "output", "links", 0, "url") ==
+  "${{ steps.propose.output.remoteUrl }}"
 
 image_file = File.join(root, "todo-api-dev/skeleton/microservice.yaml")
 rendered = File.read(image_file).sub("${{ values.digest }}", "a" * 64)
@@ -46,6 +49,34 @@ message = proposal.dig("spec", "steps", 1, "input", "message")
 %w[repoUrl branchName targetBranchName sourcePath targetPath title description].each do |key|
   raise "PR preview destination differs: #{key}" unless message.include?(
     "#{key}: #{destination.fetch(key)}")
+end
+
+preview_locations = YAML.load_file(File.join(root, "k8s/app-config.templates.yaml")).dig("catalog", "locations")
+pr_locations = YAML.load_file(File.join(root, "k8s-pr/app-config.templates.yaml")).dig("catalog", "locations")
+pr_location = {
+  "type" => "file", "target" => "/app/todo-templates/template.yaml",
+  "rules" => [{"allow" => ["Template"]}]
+}
+raise "Real PR template must be opt-in" if preview_locations.include?(pr_location)
+raise "PR registration must preserve preview and original locations" unless
+  pr_locations == preview_locations + [pr_location]
+
+%w[k8s k8s-pr].each do |mode|
+  manifests = IO.popen(["kubectl", "kustomize", File.join(root, mode)], &:read)
+  raise "Kustomize failed for #{mode}" unless $?.success?
+  deployment = YAML.load_stream(manifests).find { |item| item.fetch("kind") == "Deployment" }
+  container = deployment.dig("spec", "template", "spec", "containers").first
+  github_env = container.fetch("env").find { |item| item.fetch("name") == "GITHUB_TOKEN" }
+  if mode == "k8s-pr"
+    raise "GitHub credential is not Secret-backed" unless github_env ==
+      {"name" => "GITHUB_TOKEN", "valueFrom" => {
+        "secretKeyRef" => {"name" => "backstage-github", "key" => "token"}}}
+  else
+    raise "Preview deployment must not inject a GitHub token" if github_env
+  end
+  mount = container.fetch("volumeMounts").find { |item| item.fetch("subPath") == "template.yaml" }
+  raise "Real template must use a read-only subPath mount" unless
+    mount && mount.fetch("readOnly") && mount.fetch("mountPath") == pr_location.fetch("target")
 end
 
 puts "Template and preview structure verified locally; real Backstage rendering is checked separately."

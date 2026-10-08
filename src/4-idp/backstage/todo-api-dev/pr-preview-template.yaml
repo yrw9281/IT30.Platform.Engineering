@@ -39,11 +39,11 @@ spec:
         message: |
           PR INPUT PREVIEW ONLY. No GitHub action was executed.
           Planned action: publish:github:pull-request
-          repoUrl: github.com?owner=yrw9281&repo=repo-config
+          repoUrl: github.com?owner=yrw9281&repo=IT30.Platform.Engineering
           branchName: backstage/todo-api/dev/${{ parameters.digest }}
           targetBranchName: main
           sourcePath: .
-          targetPath: apps/todo-api/overlays/dev
+          targetPath: src/5-config/apps/todo-api/overlays/dev
           title: Propose Todo API image for Dev
           description: Review the image digest and environment before merging.
   output:
@@ -53,10 +53,10 @@ spec:
           This previews the PR action inputs using `debug:log`.
           It does not call `publish:github:pull-request` or create a Git branch or PR.
 
-          - Repository: `yrw9281/repo-config` (planned destination, not yet connected)
+          - Repository: `yrw9281/IT30.Platform.Engineering`
           - Proposed branch: `backstage/todo-api/dev/${{ parameters.digest }}`
           - Target branch: `main`
-          - Target directory: `apps/todo-api/overlays/dev`
+          - Target directory: `src/5-config/apps/todo-api/overlays/dev`
 
           Open the logs for "Preview PR inputs (no PR created)"
           to view the parameters and actual rendered files.

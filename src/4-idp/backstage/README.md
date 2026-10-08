@@ -116,11 +116,11 @@ bash ../deploy-templates.sh
 
 `yarn build-image` loads `ghcr.io/yrw9281/it30-idp-backstage:demo` into the local Docker engine. It does not push the image or change the cluster.
 
-`todo-api-dev/template.yaml` is a staged Software Template example for updating the planned `repo-config` repository. It limits input to an image digest, fixes the service and Git destination, and targets the existing `todo` namespace; it does **not** verify the digest against a CI run or authorize the person submitting it. Dev names the environment's purpose: the template name, PR branch and `overlays/dev` Git path do not require a separate namespace. The GitHub Scaffolder module, Git credentials, protected branch and config checks must be configured before use.
+`todo-api-dev/template.yaml` proposes configuration changes to `yrw9281/IT30.Platform.Engineering`, targeting `main` and `src/5-config/apps/todo-api/overlays/dev`. The first PR creates `microservice.yaml` and `kustomization.yaml` in that directory; subsequent image updates should change only the digest. The directory does not need to exist beforehand, but the repository and target branch do. The template limits input to a digest and targets the existing `todo` namespace; it does **not** verify the digest against a CI run or authorize the person submitting it. Dev names the environment's purpose, not a separate namespace.
 
-The [Kopf Operator](../operator/README.md) now manages the adopted Todo API in the existing `todo` namespace and reports conditions. The Template and Catalog target that same namespace without creating another environment. The planned `repo-config`, its Dev directory and the Argo CD application for it remain unconnected to the Template. Do not run the PR action against a real repository until those dependencies and review rules are in place. Rendering the skeleton or observing healthy existing Pods does not prove that a proposed digest has been deployed.
+The [Kopf Operator](../operator/README.md) manages the adopted Todo API in the existing `todo` namespace and reports conditions. The Template and Catalog target that same namespace. Argo CD still reads `src/1-kubernetes/kind`, not the new configuration directory, so creating or merging a PR does not deploy its digest. A future Application can read the same repository, `main` and the new directory; resource ownership must be handed off before enabling synchronization. Do not delete native manifests while the existing Application's `prune`/`selfHeal` can affect the Operator's workloads.
 
-Run the local structure check with `ruby src/4-idp/backstage/check-template.rb`. This parses the Backstage YAML, substitutes a test digest and checks the resulting `Microservice` resource, including its `todo` namespace and agreement with the Catalog lookup. It also checks that both previews use the same inputs and only run `fetch:template` and `debug:log`. This is not a test of the actual Backstage renderer.
+Run the local structure check with `ruby src/4-idp/backstage/check-template.rb`. This parses the Backstage YAML, substitutes a test digest and checks the resulting `Microservice` resource, including its `todo` namespace and agreement with the Catalog lookup. It also checks that both previews use the same inputs and only run `fetch:template` and `debug:log`, and uses `kubectl kustomize` to verify both deployment modes without contacting the cluster. This is not a test of the actual Backstage renderer or a GitHub write.
 
 ### D23 and D24 screenshot previews
 
@@ -131,7 +131,7 @@ Two templates are registered for safe UI demonstrations:
 | Todo API Dev Config Preview (D23) | Collect a digest and render the Todo files | Actual YAML in step logs |
 | Todo API Dev PR Input Preview (D24) | Render the files and display the intended PR inputs | Destination/branch/path in logs and task output; no PR |
 
-The canonical `todo-api-dev/template.yaml` is **not** registered. Neither preview calls a GitHub action or writes to Kubernetes. No GitHub credentials are needed.
+By default, the canonical `todo-api-dev/template.yaml` is mounted but **not** registered, and no `GITHUB_TOKEN` is injected. Neither preview calls a GitHub action or writes to Kubernetes. No GitHub credentials are needed.
 
 From the repository root, install or update the previews in an existing Backstage deployment:
 
@@ -140,7 +140,7 @@ ruby src/4-idp/backstage/check-template.rb
 bash src/4-idp/backstage/deploy-templates.sh
 ```
 
-The helper displays the current Kubernetes context, creates the template ConfigMap, applies the Deployment/Service and restarts Backstage. The existing connection Secret must already exist. `app-config.templates.yaml` retains the example Catalog, organization and original sample template locations while adding the two preview locations. No image rebuild is needed for changes to these mounted files.
+The helper displays the current Kubernetes context, creates the template ConfigMap, applies the Deployment/Service and restarts Backstage. The existing connection Secret must already exist. `app-config.templates.yaml` retains the example Catalog, organization and original sample template locations while adding the two preview locations. No image rebuild is needed for changes to these mounted files. Running the helper **without** `--enable-pr` selects preview-only mode, including after a previous PR-enabled deployment.
 
 Each file uses a read-only `subPath` mount. Mounting the whole projected ConfigMap directory exposes Kubernetes' `..timestamp` symlinks, which Backstage's safe-path check rejects when fetching the skeleton. `subPath` files do not update inside a running container; rerun the deployment helper after editing a template or skeleton.
 
@@ -163,3 +163,38 @@ ruby src/4-idp/backstage/check-preview.rb
 ```
 
 An optional first argument supplies the digest to render. The default is a synthetic 64-character value for rendering tests; it does not establish that an image exists. Use a real Todo digest for article screenshots. Task history uses the demo's Pod-local SQLite database and is lost on restart.
+
+### Enable real D24 Pull Requests
+
+This is an explicit opt-in mode. It keeps both preview templates and registers **Todo API Dev Config Pull Request (D24)** (`todo-api-dev-image`). Unlike the PR-input preview, this template calls GitHub and creates a branch/PR; it does not merge the PR or write to Kubernetes.
+
+The demo still uses Guest login and an allow-all permission policy. Restrict it to a trusted loopback port-forward while a write credential is available. Any user allowed to execute GitHub actions can potentially use the backend credential, including through the original sample template. Do not expose this configuration publicly; production use requires authentication and action/template authorization.
+
+1. Create a fine-grained GitHub PAT whose resource owner is `yrw9281`, with access only to `IT30.Platform.Engineering` and repository permissions **Contents: Read and write** and **Pull requests: Read and write**. The token owner must already have appropriate repository access. Set an expiration date and complete any required organization approval. Confirm that `main` exists and configure required review/branch protection before treating merged changes as approved configuration. The current CLI account may not have access to this repository; its login is separate from the PAT used by Backstage.
+2. From the repository root, write the PAT to Kubernetes using hidden input:
+
+   ```bash
+   bash src/4-idp/backstage/set-github-token.sh
+   ```
+
+   The helper creates or updates `backstage/backstage-github` with a `token` key using server-side apply. It does not print the value, store it in a file, or add a client-side last-applied annotation. Do not enable shell tracing or commit Secret contents.
+3. Enable and deploy the real PR template:
+
+   ```bash
+   ruby src/4-idp/backstage/check-template.rb &&
+   bash src/4-idp/backstage/deploy-templates.sh --enable-pr
+   ```
+
+   The helper checks that the Secret's `token` key is nonempty before changing the ConfigMap or Deployment. `k8s-pr/` adds `GITHUB_TOKEN` through `secretKeyRef`; the existing `integrations.github` configuration and GitHub Scaffolder backend module consume it. The PR-mode Catalog configuration adds the real template without removing the original locations or previews. No image rebuild, Git commit or push is required to load these local Template definitions.
+4. Stop the previous port-forward with Ctrl+C if it is still running, then start a new one:
+
+   ```bash
+   kubectl port-forward -n backstage service/backstage 7007:7007 --address=127.0.0.1
+   ```
+
+5. Open `http://127.0.0.1:7007`, sign in as Guest and select **Create → Todo API Dev Config Pull Request (D24)**. Enter the 64 lowercase hex characters from a Todo CI image digest, without `sha256:`. Review the form and submit it. This operation performs a real GitHub write.
+6. Open **Review the config change** in the completed task. Confirm the repository, base branch `main`, head branch `backstage/todo-api/dev/<digest>` and the two files under `src/5-config/apps/todo-api/overlays/dev`. Capture the task's PR link and GitHub's **Files changed** view for D24. Do not merge just to obtain a screenshot: configuration checks and required reviews are separate setup, and Argo CD is not connected to this directory.
+
+If GitHub returns an authentication/access error, check PAT expiration, repository selection, owner permissions and organization approval. For a branch error, verify `main` and any existing proposal branch/PR for the same digest before retrying. The fixed PR description does not attach CI provenance. The existing application CI is not a replacement for independent YAML/CRD/image-source validation; those configuration checks have not been implemented by this setup.
+
+To rotate the credential, rerun `set-github-token.sh` and `deploy-templates.sh --enable-pr`; environment variables only refresh in a new Pod. To disable this mode, run `deploy-templates.sh` without the flag and revoke the PAT in GitHub when it is no longer needed. Restarts lose the demo's task history, but an already-created GitHub PR remains in GitHub. These helpers do not create an Argo CD Application or enable deployment.
