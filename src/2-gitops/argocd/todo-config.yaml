@@ -1,0 +1,35 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: todo-config
+  namespace: argocd
+spec:
+  description: Sync the Todo API Microservice without managing its child workloads.
+  sourceRepos:
+    - https://github.com/yrw9281/IT30.Platform.Engineering.git
+  destinations:
+    - namespace: todo
+      server: https://kubernetes.default.svc
+  clusterResourceWhitelist: []
+  namespaceResourceWhitelist:
+    - group: platform.example.io
+      kind: Microservice
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: todo-config
+  namespace: argocd
+spec:
+  project: todo-config
+  source:
+    repoURL: https://github.com/yrw9281/IT30.Platform.Engineering.git
+    targetRevision: main
+    path: src/5-config/apps/todo-api/overlays/dev
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: todo
+  syncPolicy:
+    automated:
+      prune: false
+      selfHeal: true
