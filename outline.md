@@ -90,7 +90,7 @@ DDD? Clean Architecture? Microservices? 帶你用.NET實作打造一個現代化
 | --- | --- | --- |
 | **Day 27** | Kubernetes RBAC 與 Namespace 能隔離什麼 | 以 Todo API、Operator、Argo CD 與 Backstage 的不同身分，簡介 Namespace、ServiceAccount、Role／RoleBinding 與最小權限；區分 API 授權、網路隔離和資源預算。 |
 | **Day 28** | Gatekeeper 如何檢查 Kubernetes 資源設定 | 說明 Admission、OPA 與 Gatekeeper 的分工，以及 ConstraintTemplate／Constraint 的邏輯、參數與範圍；以 privileged 情境解釋預期允許／拒絕、工作負載與 Pod 的檢查邊界，不提供未實作的 Rego 或拒絕結果。 |
-| **Day 29** | 把 Gatekeeper 政策放進平台交付流程 | 延伸 limits、image 來源與 digest，說明 audit、dryrun／warn／deny、例外與 webhook 故障取捨；沿著 Argo CD 同步 CR、Operator 建立工作負載的路徑定位政策拒絕與回饋缺口，不宣稱整合已完成。 |
+| **Day 29** | 把 Gatekeeper 政策放進平台交付流程 | 延伸 limits、image 來源與 digest，說明 audit、dryrun／warn／deny 與例外的檢查範圍；沿著 Argo CD 同步 CR、Operator 建立工作負載的路徑定位政策拒絕與回饋缺口，不宣稱整合已完成。 |
 
 ### 第七階段：成果展示與回顧（Day 30）
 

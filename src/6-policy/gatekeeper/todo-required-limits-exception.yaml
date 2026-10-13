@@ -1,0 +1,17 @@
+apiVersion: constraints.gatekeeper.sh/v1beta1
+kind: K8sDeploymentRequiredLimits
+metadata:
+  name: todo-required-limits # 修改同一份 Constraint，不是另加一條規則。
+spec:
+  enforcementAction: dryrun
+  match:
+    namespaces:
+      - todo
+    kinds:
+      - apiGroups: ["apps"]
+        kinds: ["Deployment"]
+    labelSelector:
+      matchExpressions:
+        - key: app
+          operator: NotIn # 排除 app=todo-api，其餘仍檢查。
+          values: ["todo-api"]

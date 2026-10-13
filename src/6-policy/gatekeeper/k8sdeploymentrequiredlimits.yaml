@@ -1,0 +1,54 @@
+apiVersion: templates.gatekeeper.sh/v1
+kind: ConstraintTemplate
+metadata:
+  name: k8sdeploymentrequiredlimits
+spec:
+  crd:
+    spec:
+      names:
+        kind: K8sDeploymentRequiredLimits
+      validation:
+        openAPIV3Schema:
+          type: object
+  targets:
+    - target: admission.k8s.gatekeeper.sh
+      rego: |
+        package k8sdeploymentrequiredlimits
+
+        # 欄位必須存在且非空；不計算上限是否合適。
+        has_limit(container, resource) {
+          value := container.resources.limits[resource]
+          value != null
+          value != ""
+        }
+
+        violation[{"msg": msg}] {
+          input.review.kind.kind == "Deployment"
+          pod_spec := input.review.object.spec.template.spec
+          field := ["containers", "initContainers"][_]
+          container := pod_spec[field][_]
+
+          # CPU 與 memory 分別檢查，缺哪個就回報哪個。
+          resource := ["cpu", "memory"][_]
+          # resources 或 limits 整個沒填，也會被判定缺少欄位。
+          not has_limit(container, resource)
+
+          msg := sprintf(
+            "container <%v> is missing resources.limits.%v",
+            [container.name, resource]
+          )
+        }
+---
+apiVersion: constraints.gatekeeper.sh/v1beta1
+kind: K8sDeploymentRequiredLimits
+metadata:
+  name: todo-required-limits
+spec:
+  # 不阻擋違規請求；從 audit 結果找出需要修正的工作負載。
+  enforcementAction: dryrun
+  match:
+    namespaces:
+      - todo
+    kinds:
+      - apiGroups: ["apps"]
+        kinds: ["Deployment"]

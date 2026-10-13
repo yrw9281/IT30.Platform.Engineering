@@ -1,0 +1,51 @@
+apiVersion: templates.gatekeeper.sh/v1
+kind: ConstraintTemplate
+metadata:
+  name: k8sdeploymentnoprivileged
+spec:
+  crd:
+    spec:
+      names:
+        # Gatekeeper 會建立這個 Kind，供後面的 Constraint 使用。
+        kind: K8sDeploymentNoPrivileged
+      validation:
+        # 定義 parameters 的格式；這條固定規則不需要額外參數。
+        openAPIV3Schema:
+          type: object
+  targets:
+    - target: admission.k8s.gatekeeper.sh
+      # | 以下的多行文字是 Rego，不是 YAML 欄位。
+      rego: |
+        package k8sdeploymentnoprivileged
+
+        # 找到違規容器就回報 msg；是否拒絕由 Constraint 決定。
+        violation[{"msg": msg}] {
+          input.review.kind.kind == "Deployment"
+          # Deployment 的容器在 Pod template 中，不在 spec.containers。
+          pod_spec := input.review.object.spec.template.spec
+          # := 綁定變數，[_] 逐一取出陣列元素；兩種容器都要檢查。
+          field := ["containers", "initContainers"][_]
+          container := pod_spec[field][_]
+
+          # 未設定或設為 false 不違規，只有 true 才回報。
+          container.securityContext.privileged == true
+
+          msg := sprintf(
+            "container <%v> must not enable securityContext.privileged",
+            [container.name]
+          )
+        }
+---
+apiVersion: constraints.gatekeeper.sh/v1beta1
+kind: K8sDeploymentNoPrivileged # 對應 Template 定義的 Kind。
+metadata:
+  name: todo-no-privileged
+spec:
+  # 示範正式拒絕模式；首次導入仍應先用 dryrun 盤點。
+  enforcementAction: deny
+  match:
+    namespaces:
+      - todo
+    kinds:
+      - apiGroups: ["apps"]
+        kinds: ["Deployment"]

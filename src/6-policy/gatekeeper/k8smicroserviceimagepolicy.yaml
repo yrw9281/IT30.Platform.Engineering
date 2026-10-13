@@ -1,0 +1,54 @@
+apiVersion: templates.gatekeeper.sh/v1
+kind: ConstraintTemplate
+metadata:
+  name: k8smicroserviceimagepolicy
+spec:
+  crd:
+    spec:
+      names:
+        kind: K8sMicroserviceImagePolicy
+      validation:
+        openAPIV3Schema:
+          type: object
+  targets:
+    - target: admission.k8s.gatekeeper.sh
+      rego: |
+        package k8smicroserviceimagepolicy
+
+        valid_image(image) {
+          # 固定 repository，並要求 sha256: 後有 64 位小寫十六進位值。
+          # ^ 與 $ 限定整個字串，避免其他來源或尾端多餘文字通過。
+          # :0.1.0 這類 tag 可以被重新指向，因此不符合 digest 要求。
+          regex.match(
+            "^ghcr[.]io/yrw9281/it30-todo-api@sha256:[0-9a-f]{64}$",
+            image
+          )
+        }
+
+        violation[{"msg": msg}] {
+          input.review.kind.group == "platform.example.io"
+          input.review.kind.kind == "Microservice"
+          image := object.get(input.review.object.spec, "image", "")
+
+          # 其他 repository 即使帶有 digest，一樣不符合這條規則。
+          not valid_image(image)
+
+          msg := sprintf(
+            "Microservice <%v> spec.image must use ghcr.io/yrw9281/it30-todo-api@sha256:<64 lowercase hex characters>",
+            [input.review.object.metadata.name]
+          )
+        }
+---
+apiVersion: constraints.gatekeeper.sh/v1beta1
+kind: K8sMicroserviceImagePolicy
+metadata:
+  name: todo-image-policy
+spec:
+  # 回傳 API 警告，但提交工具必須能顯示，使用者才看得到。
+  enforcementAction: warn
+  match:
+    namespaces:
+      - todo
+    kinds:
+      - apiGroups: ["platform.example.io"]
+        kinds: ["Microservice"]
