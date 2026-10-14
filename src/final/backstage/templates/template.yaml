@@ -36,7 +36,7 @@ spec:
         branchName: backstage/todo-api/dev/${{ parameters.digest }}
         targetBranchName: main
         sourcePath: .
-        targetPath: src-full/config/todo-api
+        targetPath: src/final/config/todo-api
         title: Propose Todo API image for Dev
         description: Review the image digest and environment before merging.
   output:

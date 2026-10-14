@@ -10,9 +10,9 @@ spec:
     - list:
         elements:
           - name: todo-full-runtime
-            path: src-full/config/runtime
+            path: src/final/config/runtime
           - name: todo-full-api
-            path: src-full/config/todo-api
+            path: src/final/config/todo-api
   syncPolicy:
     preserveResourcesOnDeletion: true
   template:

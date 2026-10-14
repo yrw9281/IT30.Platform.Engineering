@@ -3,12 +3,12 @@ name: platform-full
 on:
   pull_request:
     paths:
-      - src-full/**
+      - src/final/**
       - .github/workflows/platform-full.yaml
   push:
     branches: [main]
     paths:
-      - src-full/**
+      - src/final/**
       - .github/workflows/platform-full.yaml
     tags: ["platform-v*"]
   workflow_dispatch:
@@ -31,7 +31,7 @@ jobs:
           for stage in foundation bootstrap/argocd bootstrap/ingress bootstrap/gatekeeper \
             policy/templates policy/constraints observability operator backstage \
             config/runtime config/todo-api gitops; do
-            kubectl kustomize "src-full/$stage" > "/tmp/platform-rendered/${stage//\//-}.yaml"
+            kubectl kustomize "src/final/$stage" > "/tmp/platform-rendered/${stage//\//-}.yaml"
           done
       - name: Check schema, image policy and resource ownership
         run: |
@@ -41,7 +41,7 @@ jobs:
           import jsonschema
           import yaml
 
-          root = Path("src-full")
+          root = Path("src/final")
           crd = yaml.safe_load((root / "foundation/microservice-crd.yaml").read_text())
           schema = crd["spec"]["versions"][0]["schema"]["openAPIV3Schema"]
           seen = set()
@@ -84,7 +84,7 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 8.0.x
-      - run: dotnet build src-full/services/${{ matrix.service }} --configuration Release
+      - run: dotnet build src/final/services/${{ matrix.service }} --configuration Release
 
   images:
     needs: [config, source]
@@ -96,13 +96,13 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - context: src-full/services/Todo.Api
+          - context: src/final/services/Todo.Api
             image: it30-todo-api
-          - context: src-full/services/Todo.Bff
+          - context: src/final/services/Todo.Bff
             image: it30-todo-bff
-          - context: src-full/services/WebApp
+          - context: src/final/services/WebApp
             image: it30-todo-web
-          - context: src-full/backstage/app
+          - context: src/final/backstage/app
             image: it30-idp-backstage
     steps:
       - uses: actions/checkout@v4

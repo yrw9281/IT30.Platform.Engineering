@@ -43,8 +43,8 @@ API Server 也必須能透過 TLS 連線到各 Node 的 kubelet，否則 Pod 可
 
 預設使用本 repository 的 `main`：
 
-- Argo CD 讀取 `src-full/config/runtime` 與 `src-full/config/todo-api`。
-- Backstage PR 只寫入 `src-full/config/todo-api`。
+- Argo CD 讀取 `src/final/config/runtime` 與 `src/final/config/todo-api`。
+- Backstage PR 只寫入 `src/final/config/todo-api`。
 - image 使用 `ghcr.io/yrw9281/it30-todo-*`，Backstage 使用 `it30-idp-backstage:demo`。
 
 **先將這份目錄提交並推送到 `main`，再啟用 GitOps。** Argo CD 讀取遠端 Git，不讀本機工作目錄。改用 fork 時，須一併修改 `gitops/project.yaml`、`gitops/applicationset.yaml`、`backstage/templates/template.yaml` 的 repository 設定。若也換 image repository，還須修改 workload image、模板 skeleton、image policy 與 CI 的檢查／發佈目的地。
@@ -53,12 +53,12 @@ API Server 也必須能透過 TLS 連線到各 Node 的 kubelet，否則 Pod 可
 
 ## 安裝順序
 
-所有指令從 `src-full/` 執行。不使用 `kubectl apply -R -f .`：目錄裡有 Kustomize 設定、Backstage Catalog／Template、應用程式設定與 workflow，它們不是 Kubernetes API 資源。CRD 與 webhook 也必須先完成註冊，才能提交依賴它們的資源，因此沒有將所有階段塞進一份根目錄 Kustomization。
+所有指令從 `src/final/` 執行。不使用 `kubectl apply -R -f .`：目錄裡有 Kustomize 設定、Backstage Catalog／Template、應用程式設定與 workflow，它們不是 Kubernetes API 資源。CRD 與 webhook 也必須先完成註冊，才能提交依賴它們的資源，因此沒有將所有階段塞進一份根目錄 Kustomization。
 
 ### 1. 建立 Namespace 與 CRD
 
 ```bash
-cd src-full
+cd src/final
 kubectl config current-context
 kubectl apply --server-side -k foundation
 kubectl wait --for=condition=Established \
@@ -248,20 +248,20 @@ GitHub 只會執行 `.github/workflows/` 裡的 workflow；`ci/platform.yaml` �
 
 ```bash
 mkdir -p .github/workflows
-cp src-full/ci/platform.yaml .github/workflows/platform-full.yaml
+cp src/final/ci/platform.yaml .github/workflows/platform-full.yaml
 ```
 
-將 workflow 與 `src-full/` 一起提交，再為 `main` 設定 required checks 與人工 review。Workflow 檢查渲染、資源唯一性、CRD schema、Todo API 的固定合約／repository／digest，建置兩個 .NET 專案與四個 image；PR 只建置，不推送。
+將 workflow 與 `src/final/` 一起提交，再為 `main` 設定 required checks 與人工 review。Workflow 檢查渲染、資源唯一性、CRD schema、Todo API 的固定合約／repository／digest，建置兩個 .NET 專案與四個 image；PR 只建置，不推送。
 
 `platform-v*` tag 或手動執行會推送 API、BFF、Web、Backstage image，並在 job summary 輸出 digest。Workflow 不修改部署設定、不自動合併 PR；image digest 對應的 CI 身分／來源與是否允許 promotion 仍需 review，不是只驗證格式就算供應鏈驗證完成。
 
 已發布的初始 image 可直接用來啟動教學環境。要由這份來源重新建置，可以使用：
 
 ```bash
-docker build -t ghcr.io/yrw9281/it30-todo-api:full src-full/services/Todo.Api
-docker build -t ghcr.io/yrw9281/it30-todo-bff:full src-full/services/Todo.Bff
-docker build -t ghcr.io/yrw9281/it30-todo-web:full src-full/services/WebApp
-docker build -t ghcr.io/yrw9281/it30-idp-backstage:full src-full/backstage/app
+docker build -t ghcr.io/yrw9281/it30-todo-api:full src/final/services/Todo.Api
+docker build -t ghcr.io/yrw9281/it30-todo-bff:full src/final/services/Todo.Bff
+docker build -t ghcr.io/yrw9281/it30-todo-web:full src/final/services/WebApp
+docker build -t ghcr.io/yrw9281/it30-idp-backstage:full src/final/backstage/app
 ```
 
 這組建置指令從 repository 根目錄執行。自行登入 GHCR 並推送後，以實際 digest 更新 API CR，更新 BFF／Web 的 Git 設定與 Backstage Deployment 的 image。不要把不存在的 digest 填進 CR。Backstage Dockerfile 內含安裝、型別檢查與 backend／frontend 打包，不需要先在本機安裝 `node_modules` 或準備 bundle。
@@ -270,7 +270,7 @@ docker build -t ghcr.io/yrw9281/it30-idp-backstage:full src-full/backstage/app
 
 ```bash
 docker build --secret id=build-ca,src=/etc/ssl/certs/ca-certificates.crt \
-  -t ghcr.io/yrw9281/it30-idp-backstage:full src-full/backstage/app
+  -t ghcr.io/yrw9281/it30-idp-backstage:full src/final/backstage/app
 ```
 
 ## 版本與限制
