@@ -70,10 +70,6 @@ spec:
               subPath: preview-template.yaml
               readOnly: true
             - name: todo-templates
-              mountPath: /app/todo-templates/pr-preview-template.yaml
-              subPath: pr-preview-template.yaml
-              readOnly: true
-            - name: todo-templates
               mountPath: /app/todo-templates/template.yaml
               subPath: template.yaml
               readOnly: true
@@ -94,8 +90,6 @@ spec:
                 path: app-config.templates.yaml
               - key: preview-template.yaml
                 path: preview-template.yaml
-              - key: pr-preview-template.yaml
-                path: pr-preview-template.yaml
               - key: template.yaml
                 path: template.yaml
               - key: microservice.yaml

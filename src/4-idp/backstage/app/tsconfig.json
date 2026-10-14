@@ -2,14 +2,11 @@
   "extends": "@backstage/cli/config/tsconfig.json",
   "include": [
     "packages/*/src",
-    "packages/*/config.d.ts",
-    "plugins/*/src",
-    "plugins/*/config.d.ts",
-    "plugins/*/dev",
-    "plugins/*/migrations"
+    "packages/*/config.d.ts"
   ],
   "exclude": ["node_modules"],
   "compilerOptions": {
+    "types": ["node", "webpack-env"],
     "outDir": "dist-types",
     "rootDir": ".",
     "jsx": "react-jsx"

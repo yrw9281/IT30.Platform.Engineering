@@ -1,7 +1,5 @@
 ---
-# Canonical source: src/4-idp/backstage/catalog-info.yaml (synced by
-# scripts/sync-catalog.sh before each image build). Describes the
-# existing todo-api Deployment in the `todo` namespace.
+# Copy of src/4-idp/backstage/catalog-info.yaml; refresh before building the image.
 apiVersion: backstage.io/v1alpha1
 kind: Component
 metadata:
