@@ -96,7 +96,7 @@ DDD? Clean Architecture? Microservices? 帶你用.NET實作打造一個現代化
 
 | 天數 | 文章標題 | 內容核心描述 |
 | --- | --- | --- |
-| **Day 30** | **30 篇後：展示 Todo 平台的交付成果** | 以 Todo API 展示 CI image、Backstage 設定 PR、Operator 工作負載與健康回報，以及 Grafana／Backstage 查詢能力；沿用已有畫面並標示待補素材，區分已有範例、已展示成果與待確認的端到端交付／Gatekeeper 整合，整理後續方向。 |
+| **Day 30** | **平台工程系列回顧** | 依第一至第六階段的順序，以短段落與截圖回顧 Kubernetes 部署、GitOps、可觀測性、CI 交接、Backstage／Operator 與 API 權限／資源政策，再保留思考問題、感謝與 GitHub Repo 連結。沿用現有截圖，缺少畫面留下 TODO，簡短交代端到端交付與政策整合仍待驗證，不展開成果矩陣或演進計畫。 |
 
 ## 視覺素材規劃
 
@@ -133,4 +133,4 @@ DDD? Clean Architecture? Microservices? 帶你用.NET實作打造一個現代化
 | 27 | Namespace 與 RBAC 權限邊界 | 工作負載、Operator、Argo CD 與 Backstage 查詢身分的不同權限；完整團隊隔離仍為設計。 |
 | 28 | Gatekeeper Admission 與資源檢查邊界 | API 授權、Template、Constraint、admission 與拒絕回饋的關係，標示 CR、Deployment 與 Pod 為不同 API 請求；不使用實測拒絕畫面。 |
 | 29 | 政策導入與交付錯誤回饋 | audit 盤點、執行模式與修正流程，以及 Argo CD 提交 CR、Operator 提交 Deployment、ReplicaSet 建立 Pod 各層的拒絕位置；標示尚未完成的回饋整合。 |
-| 30 | Todo 平台成果與交付現況 | 沿用 Backstage PR、Operator Ready 與 Grafana Trace 畫面；補上 Backstage 部署查詢截圖與成果地圖，區分已運作、已有設定與待整合，不呈現虛構的全自動交付。 |
+| 30 | 各階段成果截圖 | 依系列階段安排畫面，沿用 Grafana dashboard／Trace、GHCR image、Operator Ready 與 Backstage PR 截圖；待補 Todo 功能、Argo CD 同步／健康與 Backstage 部署查詢畫面。Gatekeeper 允許／拒絕截圖須待叢集驗證後補上，不另製成果地圖，也不以各環節的截圖宣稱已完成端到端交付。 |
