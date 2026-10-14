@@ -26,17 +26,20 @@ Namespace 只在 `foundation/` 宣告；`ingress-nginx` 與 `gatekeeper-system` 
 
 ## 開始前
 
-準備可存取該 Cluster 的 kubeconfig、管理者權限，以及含 Kustomize 的 `kubectl`。叢集需能存取 GHCR、Docker Hub、`registry.k8s.io`、`quay.io` 與 PyPI，Argo CD 需能讀取 GitHub；Operator init container 會安裝固定版本的 Kopf／Kubernetes client。建立 Cluster 的方式不限定。
+準備可存取該 Cluster 的 kubeconfig、管理者權限，以及含 Kustomize 的 `kubectl`。`kubectl` 與 API Server 的 minor version 差距須在一版以內；例如 Kubernetes `1.30` 使用 `kubectl 1.29`–`1.31`。叢集需能存取 GHCR、Docker Hub、`registry.k8s.io`、`quay.io` 與 PyPI，Argo CD 需能讀取 GitHub；Operator init container 會安裝固定版本的 Kopf／Kubernetes client。建立 Cluster 的方式不限定。
 
 先確認 context 指向這個乾淨 Cluster，Node 全部為 `Ready`；context 不正確或有 Node 尚未就緒時，先處理再繼續：
 
 ```bash
 kubectl config current-context
+kubectl version
 kubectl cluster-info
 kubectl get nodes
 ```
 
 這份設定供測試叢集使用，平台 Pod 帶有 control-plane 的 `NoSchedule` toleration，可使用 worker 與 control-plane 的剩餘容量，但不移除節點 taint。共用設定在 `bootstrap/scheduling/`；Operator 產生的 Todo API Pod 也帶有同樣的 toleration。正式環境應使用足夠的專用 worker，移除各 Kustomization 的 scheduling component 與 Operator 內對應設定。Node 為 `Ready` 不代表還有容量，若 Pod 停在 `Pending`，請查看 `kubectl describe pod` 的排程事件。
+
+API Server 也必須能透過 TLS 連線到各 Node 的 kubelet，否則 Pod 可為 `Running`，但 `logs`、`exec`、`port-forward` 會失敗。若出現 `error dialing backend: remote error: tls: internal error`，請由叢集管理者檢查 `kubectl get csr` 與 kubelet serving certificate；只能在核對 requester、Subject、SAN 與 Node 位址後核准對應 CSR，不要批次核准未知申請或停用 TLS 驗證。
 
 預設使用本 repository 的 `main`：
 
@@ -211,16 +214,29 @@ ApplicationSet 沒有啟用自動 prune，也保留刪除 ApplicationSet 時的�
 ```bash
 kubectl port-forward -n ingress-nginx service/ingress-nginx-controller 8080:80
 # 在另一個終端機；瀏覽器可開啟 http://todo.localhost:8080
-curl --fail -H 'Host: todo.localhost' http://127.0.0.1:8080/api/todos
+curl --noproxy '*' --fail --max-time 15 \
+  -H 'Host: todo.localhost' http://127.0.0.1:8080/api/todos
 
 kubectl port-forward -n observability service/grafana 3000:3000
 kubectl port-forward -n backstage service/backstage 7007:7007
 kubectl port-forward -n argocd service/argocd-server 8443:443
+kubectl port-forward -n observability service/prometheus 9090:9090
 ```
 
-Port-forward 各自在不同終端機執行。Grafana 用 `admin` 與剛設定的密碼登入；Backstage 使用 `http://localhost:7007`，避免與其 base URL 不一致；Argo CD 使用 `https://localhost:8443`，初始 admin 密碼需由具權限者讀取 `argocd-initial-admin-secret`，不要將輸出貼到公開紀錄。
+Port-forward 各自在不同終端機執行，只綁定本機位址；終端機關閉或所選 Pod 被替換時，需重新執行。Grafana 用 `admin` 與剛設定的密碼登入；Backstage 使用 `http://localhost:7007`，避免與其 base URL 不一致；Argo CD 使用 `https://localhost:8443`，教學環境的自簽憑證需要在瀏覽器確認。Prometheus 使用 `http://localhost:9090`。Loki 與 Tempo 的查詢入口在 Grafana Explore，不另提供前端。
+
+具權限者可在自己的終端機讀取登入密碼；不要將輸出貼到公開紀錄：
+
+```bash
+kubectl get secret grafana-admin -n observability \
+  -o jsonpath='{.data.password}' | base64 --decode; printf '\n'
+kubectl get secret argocd-initial-admin-secret -n argocd \
+  -o jsonpath='{.data.password}' | base64 --decode; printf '\n'
+```
 
 Todo 流量為 Browser → Ingress → BFF → Todo API。API 與 BFF 將 OTLP 送到 Collector，Metrics 由 Prometheus scrape，Logs 送 Loki，Traces 送 Tempo；Grafana 已載入 dashboard 與 Trace-to-Logs 關聯。Collector 保留 `debug` exporter，僅適合受控教學環境。
+
+開啟 Grafana 的 `Todo service overview` dashboard，先在 Todo 新增幾筆待辦並勾選完成，再重新整理列表產生流量。Metrics 需要至少兩次 scrape 才能計算 rate；dashboard 可選最近 15 分鐘。沒有 5xx 時比率顯示 `0`，服務完全沒有指標時仍會缺資料。Grafana Explore 可用 `{service_name="todo-api"}` 查詢 Loki；Trace-to-Logs 使用 `trace_id` metadata 篩選，因為 OTLP 的 trace ID 不一定出現在 log 本文。
 
 Backstage 的 `Create` 只有正式換版模板。填入 API CI 產出的 64 位 digest（不含 `sha256:`），模板提出 PR，review／merge 後由 Argo CD 同步 CR，再由 Operator 建立／更新工作負載。Catalog 的 Kubernetes 頁面查詢 `app=todo-api` 等 label，不查詢 Microservice conditions，也不保存交付事件時間線。
 
@@ -269,7 +285,7 @@ docker build --secret id=build-ca,src=/etc/ssl/certs/ca-certificates.crt \
 
 Argo CD 官方安裝帶有廣泛的叢集存取權。AppProject 限制此處 Application 的來源與目標，不代表 Argo CD ServiceAccount 已達 Namespace 級最小權限，也不代表完整團隊隔離。
 
-Todo API 的兩個副本各自保存記憶體型資料，彼此不共享，換版／重啟會遺失；因此 Pod／endpoint 就緒不保證 Todo 操作的資料一致性。Observability 與 Backstage SQLite 使用 `emptyDir`，重建 Pod 會失去遙測、Catalog／task 資料；Catalog 與模板會從宣告重新載入，但過去 task 紀錄不會恢復。
+Todo API 使用單副本的記憶體型資料，換版／重啟會遺失。不能直接擴成兩個副本：各 Pod 不共享資料，新增後查詢／更新可能落到另一個 Pod；需要水平擴展時，先導入共享儲存。BFF 保留兩個副本。Observability 與 Backstage SQLite 使用 `emptyDir`，重建 Pod 會失去遙測、Catalog／task 資料；Catalog 與模板會從宣告重新載入，但過去 task 紀錄不會恢復。
 
 Backstage 保留 Guest 登入與 allow-all permission policy，只能在受控的本機入口操作。Catalog 的 owner／label 不是使用者授權；正式部署必須補上身分驗證、細分權限、持久化、TLS、備份與 image pull／Git credential 管理。
 

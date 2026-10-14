@@ -30,7 +30,9 @@ datasources:
         tags:
           - key: service.name
             value: service_name
-        filterByTraceID: true
+        filterByTraceID: false
         filterBySpanID: false
+        customQuery: true
+        query: '{$${__tags}} | trace_id="$${__trace.traceId}"'
       serviceMap:
         datasourceUid: prometheus

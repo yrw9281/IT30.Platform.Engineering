@@ -50,7 +50,7 @@ def desired_resources(cr: Json) -> tuple[Json, Json]:
     deployment = {
         "apiVersion": "apps/v1", "kind": "Deployment", "metadata": metadata,
         "spec": {
-            "replicas": 2, "progressDeadlineSeconds": 120,
+            "replicas": 1, "progressDeadlineSeconds": 120,
             "selector": {"matchLabels": {"app": name}},
             "template": {"metadata": {"labels": labels},
                          "spec": {"automountServiceAccountToken": False,
