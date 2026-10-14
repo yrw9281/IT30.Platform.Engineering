@@ -1,0 +1,13 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: argocd
+components:
+  - ../scheduling
+resources:
+  - install.yaml
+images:
+  - name: public.ecr.aws/docker/library/redis
+    newName: docker.io/library/redis
+    newTag: 7.2.7-alpine
+patches:
+  - path: health.yaml

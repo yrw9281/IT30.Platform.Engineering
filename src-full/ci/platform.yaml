@@ -1,0 +1,131 @@
+name: platform-full
+
+on:
+  pull_request:
+    paths:
+      - src-full/**
+      - .github/workflows/platform-full.yaml
+  push:
+    branches: [main]
+    paths:
+      - src-full/**
+      - .github/workflows/platform-full.yaml
+    tags: ["platform-v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  config:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install PyYAML==6.0.3 jsonschema==4.25.1
+      - name: Render the deployment stages
+        run: |
+          mkdir -p /tmp/platform-rendered
+          for stage in foundation bootstrap/argocd bootstrap/ingress bootstrap/gatekeeper \
+            policy/templates policy/constraints observability operator backstage \
+            config/runtime config/todo-api gitops; do
+            kubectl kustomize "src-full/$stage" > "/tmp/platform-rendered/${stage//\//-}.yaml"
+          done
+      - name: Check schema, image policy and resource ownership
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          import jsonschema
+          import yaml
+
+          root = Path("src-full")
+          crd = yaml.safe_load((root / "foundation/microservice-crd.yaml").read_text())
+          schema = crd["spec"]["versions"][0]["schema"]["openAPIV3Schema"]
+          seen = set()
+          crs = []
+          for path in Path("/tmp/platform-rendered").glob("*.yaml"):
+              for resource in yaml.safe_load_all(path.read_text()):
+                  meta = resource["metadata"]
+                  group = resource["apiVersion"].split("/")[0] if "/" in resource["apiVersion"] else ""
+                  identity = (group, resource["kind"], meta.get("namespace", ""), meta["name"])
+                  if identity in seen:
+                      raise ValueError(f"Duplicate resource: {identity}")
+                  seen.add(identity)
+                  if resource["kind"] == "Microservice":
+                      crs.append(resource)
+                      jsonschema.validate(resource, schema)
+                      if (meta["name"], meta.get("namespace")) != ("todo-api", "todo"):
+                          raise ValueError("Only todo-api in todo is supported by this template")
+                      if set(resource["spec"]) != {"image", "port"} or resource["spec"]["port"] != 8080:
+                          raise ValueError("Todo API must retain its platform contract")
+                      if not re.fullmatch(r"ghcr[.]io/yrw9281/it30-todo-api@sha256:[0-9a-f]{64}", resource["spec"]["image"]):
+                          raise ValueError("Todo API requires its approved repository and an immutable digest")
+                  if resource["kind"] in {"Deployment", "Service"} and meta.get("namespace") == "todo" and meta["name"] == "todo-api":
+                      raise ValueError("Todo API children must only be created by the Operator")
+          if len(crs) != 1:
+              raise ValueError(f"Expected one Microservice, found {len(crs)}")
+          print(f"{len(seen)} unique resources; Microservice schema and ownership passed")
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: platform-manifests
+          path: /tmp/platform-rendered
+
+  source:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service: [Todo.Api, Todo.Bff]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - run: dotnet build src-full/services/${{ matrix.service }} --configuration Release
+
+  images:
+    needs: [config, source]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - context: src-full/services/Todo.Api
+            image: it30-todo-api
+          - context: src-full/services/Todo.Bff
+            image: it30-todo-bff
+          - context: src-full/services/WebApp
+            image: it30-todo-web
+          - context: src-full/backstage/app
+            image: it30-idp-backstage
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        if: github.event_name != 'pull_request' && (startsWith(github.ref, 'refs/tags/platform-v') || github.event_name == 'workflow_dispatch')
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - id: image
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.context }}
+          push: ${{ github.event_name != 'pull_request' && (startsWith(github.ref, 'refs/tags/platform-v') || github.event_name == 'workflow_dispatch') }}
+          tags: |
+            ghcr.io/yrw9281/${{ matrix.image }}:${{ github.sha }}
+            ghcr.io/yrw9281/${{ matrix.image }}:${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.number) || github.ref_name }}
+          cache-from: type=gha,scope=${{ matrix.image }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.image }}
+          provenance: true
+          sbom: true
+      - name: Record the promotion digest
+        if: github.event_name != 'pull_request' && (startsWith(github.ref, 'refs/tags/platform-v') || github.event_name == 'workflow_dispatch')
+        run: |
+          echo 'ghcr.io/yrw9281/${{ matrix.image }}@${{ steps.image.outputs.digest }}' >> "$GITHUB_STEP_SUMMARY"

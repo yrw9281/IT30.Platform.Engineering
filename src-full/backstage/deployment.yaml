@@ -1,0 +1,88 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backstage
+  namespace: backstage
+  labels:
+    app: backstage
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: backstage
+  template:
+    metadata:
+      labels:
+        app: backstage
+    spec:
+      serviceAccountName: backstage
+      containers:
+        - name: backstage
+          image: ghcr.io/yrw9281/it30-idp-backstage:demo
+          imagePullPolicy: Always
+          command: [node]
+          args: [packages/backend, --config, /app/platform/app-config.yaml]
+          ports:
+            - name: http
+              containerPort: 7007
+          env:
+            - name: GITHUB_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: backstage-github
+                  key: token
+          resources:
+            requests:
+              cpu: 100m
+              memory: 512Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+          readinessProbe:
+            httpGet:
+              path: /healthcheck
+              port: http
+            initialDelaySeconds: 15
+          livenessProbe:
+            httpGet:
+              path: /healthcheck
+              port: http
+            initialDelaySeconds: 30
+          volumeMounts:
+            - name: configuration
+              mountPath: /app/platform
+              readOnly: true
+            - name: temporary
+              mountPath: /tmp
+      volumes:
+        - name: configuration
+          configMap:
+            name: backstage-platform
+            items:
+              - key: app-config.yaml
+                path: app-config.yaml
+              - key: catalog-info.yaml
+                path: catalog-info.yaml
+              - key: template.yaml
+                path: templates/template.yaml
+              - key: microservice.yaml
+                path: templates/skeleton/microservice.yaml
+              - key: kustomization.yaml
+                path: templates/skeleton/kustomization.yaml
+        - name: temporary
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: backstage
+  namespace: backstage
+spec:
+  selector:
+    app: backstage
+  ports:
+    - name: http
+      port: 7007
+      targetPort: http

@@ -1,0 +1,10 @@
+node_modules
+**/node_modules
+**/dist
+dist-types
+.git
+.env*
+*.log
+.yarn/install-state.gz
+.yarn/cache
+.yarn/unplugged

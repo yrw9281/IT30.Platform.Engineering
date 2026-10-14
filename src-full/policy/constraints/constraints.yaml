@@ -1,0 +1,35 @@
+apiVersion: constraints.gatekeeper.sh/v1beta1
+kind: K8sDeploymentNoPrivileged
+metadata:
+  name: todo-no-privileged
+spec:
+  enforcementAction: deny
+  match:
+    namespaces: [todo]
+    kinds:
+      - apiGroups: [apps]
+        kinds: [Deployment]
+---
+apiVersion: constraints.gatekeeper.sh/v1beta1
+kind: K8sDeploymentRequiredLimits
+metadata:
+  name: todo-required-limits
+spec:
+  enforcementAction: dryrun
+  match:
+    namespaces: [todo]
+    kinds:
+      - apiGroups: [apps]
+        kinds: [Deployment]
+---
+apiVersion: constraints.gatekeeper.sh/v1beta1
+kind: K8sMicroserviceImagePolicy
+metadata:
+  name: todo-image-policy
+spec:
+  enforcementAction: warn
+  match:
+    namespaces: [todo]
+    kinds:
+      - apiGroups: [platform.example.io]
+        kinds: [Microservice]

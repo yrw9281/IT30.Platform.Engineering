@@ -1,0 +1,66 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: todo-bff
+  namespace: todo
+  labels:
+    app: todo-bff
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: todo-bff
+  template:
+    metadata:
+      labels:
+        app: todo-bff
+    spec:
+      containers:
+        - name: todo-bff
+          image: ghcr.io/yrw9281/it30-todo-bff:0.1.0
+          imagePullPolicy: Always
+          ports:
+            - name: http
+              containerPort: 8080
+          env:
+            - name: TODO_API_BASE_URL
+              value: http://todo-api:8080
+            - name: OTEL_SERVICE_NAME
+              value: todo-bff
+            - name: OTEL_SERVICE_VERSION
+              value: "0.1.0"
+            - name: DEPLOYMENT_ENVIRONMENT
+              value: development
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: http://otel-collector.observability.svc:4317
+          readinessProbe:
+            httpGet:
+              path: /health/ready
+              port: http
+          livenessProbe:
+            httpGet:
+              path: /health/live
+              port: http
+            initialDelaySeconds: 10
+          resources:
+            requests:
+              cpu: 25m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: todo-bff
+  namespace: todo
+  labels:
+    app: todo-bff
+spec:
+  selector:
+    app: todo-bff
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http

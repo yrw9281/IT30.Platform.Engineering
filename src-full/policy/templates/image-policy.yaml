@@ -1,0 +1,34 @@
+apiVersion: templates.gatekeeper.sh/v1
+kind: ConstraintTemplate
+metadata:
+  name: k8smicroserviceimagepolicy
+spec:
+  crd:
+    spec:
+      names:
+        kind: K8sMicroserviceImagePolicy
+      validation:
+        openAPIV3Schema:
+          type: object
+  targets:
+    - target: admission.k8s.gatekeeper.sh
+      rego: |
+        package k8smicroserviceimagepolicy
+
+        valid_image(image) {
+          regex.match(
+            "^ghcr[.]io/yrw9281/it30-todo-api@sha256:[0-9a-f]{64}$",
+            image
+          )
+        }
+
+        violation[{"msg": msg}] {
+          input.review.kind.group == "platform.example.io"
+          input.review.kind.kind == "Microservice"
+          image := object.get(input.review.object.spec, "image", "")
+          not valid_image(image)
+          msg := sprintf(
+            "Microservice <%v> spec.image must use ghcr.io/yrw9281/it30-todo-api@sha256:<64 lowercase hex characters>",
+            [input.review.object.metadata.name]
+          )
+        }

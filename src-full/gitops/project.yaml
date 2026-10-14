@@ -1,0 +1,22 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: todo-full
+  namespace: argocd
+spec:
+  description: Todo runtime and Microservice configuration; children belong to the Operator.
+  sourceRepos:
+    - https://github.com/yrw9281/IT30.Platform.Engineering.git
+  destinations:
+    - namespace: todo
+      server: https://kubernetes.default.svc
+  clusterResourceWhitelist: []
+  namespaceResourceWhitelist:
+    - group: platform.example.io
+      kind: Microservice
+    - group: apps
+      kind: Deployment
+    - group: ""
+      kind: Service
+    - group: networking.k8s.io
+      kind: Ingress

@@ -1,0 +1,39 @@
+{
+  "name": "root",
+  "version": "1.0.0",
+  "private": true,
+  "engines": {
+    "node": "22 || 24"
+  },
+  "scripts": {
+    "start": "backstage-cli repo start",
+    "build:backend": "yarn workspace backend build",
+    "build:all": "backstage-cli repo build --all",
+    "tsc": "tsc",
+    "clean": "backstage-cli repo clean",
+    "lint": "backstage-cli repo lint --all"
+  },
+  "backstage": {
+    "cli": {
+      "new": {
+        "globals": {
+          "license": "UNLICENSED"
+        }
+      }
+    }
+  },
+  "workspaces": [
+    "packages/*"
+  ],
+  "devDependencies": {
+    "@backstage/cli": "^0.36.6",
+    "@backstage/cli-defaults": "^0.1.6",
+    "typescript": "~5.8.0"
+  },
+  "resolutions": {
+    "@types/react": "^18",
+    "@types/react-dom": "^18",
+    "got": "11.8.2"
+  },
+  "packageManager": "yarn@4.13.0"
+}

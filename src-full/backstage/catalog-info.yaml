@@ -1,0 +1,53 @@
+apiVersion: backstage.io/v1alpha1
+kind: Group
+metadata:
+  name: todo
+spec:
+  type: team
+  children: []
+---
+apiVersion: backstage.io/v1alpha1
+kind: User
+metadata:
+  name: guest
+spec:
+  memberOf: [todo]
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: todo-api
+  description: Todo API service
+  annotations:
+    backstage.io/kubernetes-namespace: todo
+    backstage.io/kubernetes-label-selector: app=todo-api
+spec:
+  type: service
+  lifecycle: experimental
+  owner: todo
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: todo-bff
+  description: Todo BFF service
+  annotations:
+    backstage.io/kubernetes-namespace: todo
+    backstage.io/kubernetes-label-selector: app=todo-bff
+spec:
+  type: service
+  lifecycle: experimental
+  owner: todo
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: web
+  description: Todo Web frontend
+  annotations:
+    backstage.io/kubernetes-namespace: todo
+    backstage.io/kubernetes-label-selector: app=web
+spec:
+  type: website
+  lifecycle: experimental
+  owner: todo

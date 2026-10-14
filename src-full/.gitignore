@@ -1,0 +1,16 @@
+!backstage/app/packages/
+!backstage/app/packages/**
+!backstage/app/.yarn/releases/
+!backstage/app/.yarn/releases/yarn-4.13.0.cjs
+**/node_modules/
+**/bin/
+**/obj/
+**/dist/
+**/dist-types/
+**/__pycache__/
+*.pyc
+.env
+.env.*
+backstage/app/.yarn/install-state.gz
+backstage/app/.yarn/cache/
+backstage/app/.yarn/unplugged/

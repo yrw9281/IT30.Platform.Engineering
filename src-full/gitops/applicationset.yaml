@@ -1,0 +1,35 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: todo-full
+  namespace: argocd
+spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+  generators:
+    - list:
+        elements:
+          - name: todo-full-runtime
+            path: src-full/config/runtime
+          - name: todo-full-api
+            path: src-full/config/todo-api
+  syncPolicy:
+    preserveResourcesOnDeletion: true
+  template:
+    metadata:
+      name: "{{ .name }}"
+    spec:
+      project: todo-full
+      source:
+        repoURL: https://github.com/yrw9281/IT30.Platform.Engineering.git
+        targetRevision: main
+        path: "{{ .path }}"
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: todo
+      syncPolicy:
+        automated:
+          prune: false
+          selfHeal: true
+        syncOptions:
+          - FailOnSharedResource=true

@@ -1,0 +1,35 @@
+apiVersion: templates.gatekeeper.sh/v1
+kind: ConstraintTemplate
+metadata:
+  name: k8sdeploymentrequiredlimits
+spec:
+  crd:
+    spec:
+      names:
+        kind: K8sDeploymentRequiredLimits
+      validation:
+        openAPIV3Schema:
+          type: object
+  targets:
+    - target: admission.k8s.gatekeeper.sh
+      rego: |
+        package k8sdeploymentrequiredlimits
+
+        has_limit(container, resource) {
+          value := container.resources.limits[resource]
+          value != null
+          value != ""
+        }
+
+        violation[{"msg": msg}] {
+          input.review.kind.kind == "Deployment"
+          pod_spec := input.review.object.spec.template.spec
+          field := ["containers", "initContainers"][_]
+          container := pod_spec[field][_]
+          resource := ["cpu", "memory"][_]
+          not has_limit(container, resource)
+          msg := sprintf(
+            "container <%v> is missing resources.limits.%v",
+            [container.name, resource]
+          )
+        }

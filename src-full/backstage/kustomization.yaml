@@ -1,0 +1,16 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+components:
+  - ../bootstrap/scheduling
+resources:
+  - rbac.yaml
+  - deployment.yaml
+configMapGenerator:
+  - name: backstage-platform
+    namespace: backstage
+    files:
+      - app/app-config.yaml
+      - catalog-info.yaml
+      - templates/template.yaml
+      - templates/skeleton/microservice.yaml
+      - templates/skeleton/kustomization.yaml
