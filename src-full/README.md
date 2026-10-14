@@ -225,6 +225,8 @@ kubectl port-forward -n observability service/prometheus 9090:9090
 
 Port-forward 各自在不同終端機執行，只綁定本機位址；終端機關閉或所選 Pod 被替換時，需重新執行。Grafana 用 `admin` 與剛設定的密碼登入；Backstage 使用 `http://localhost:7007`，避免與其 base URL 不一致；Argo CD 使用 `https://localhost:8443`，教學環境的自簽憑證需要在瀏覽器確認。Prometheus 使用 `http://localhost:9090`。Loki 與 Tempo 的查詢入口在 Grafana Explore，不另提供前端。
 
+若 `kubectl` 執行在遠端主機，這些 `localhost` 指向遠端。可在 VS Code 的 Ports 面板將 `8080`、`3000`、`7007`、`8443`、`9090` 轉發到自己的電腦，並保留相同的本機 port，尤其 Backstage 的 `7007`。不要改成綁定 `0.0.0.0` 來公開 Guest 入口。
+
 具權限者可在自己的終端機讀取登入密碼；不要將輸出貼到公開紀錄：
 
 ```bash
