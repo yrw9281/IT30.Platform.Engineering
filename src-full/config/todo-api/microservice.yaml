@@ -4,5 +4,5 @@ metadata:
   name: todo-api
   namespace: todo
 spec:
-  image: ghcr.io/yrw9281/it30-todo-api@sha256:46aef566630457647c08668b24aaaadcddfd5766195f9afd92d1ed4f34a2d7f7
+  image: ghcr.io/yrw9281/it30-todo-api@sha256:28492db0bfbde7c18a666fbb462ab879ff881188291c8ee665d835775e27fce0
   port: 8080
