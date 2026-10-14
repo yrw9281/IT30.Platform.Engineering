@@ -33,6 +33,6 @@ datasources:
         filterByTraceID: false
         filterBySpanID: false
         customQuery: true
-        query: '{$${__tags}} | trace_id="$${__trace.traceId}"'
+        query: '{$${__tags}} | trace_id=~"0*$${__trace.traceId}"'
       serviceMap:
         datasourceUid: prometheus

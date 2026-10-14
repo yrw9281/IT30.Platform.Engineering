@@ -236,7 +236,7 @@ kubectl get secret argocd-initial-admin-secret -n argocd \
 
 Todo 流量為 Browser → Ingress → BFF → Todo API。API 與 BFF 將 OTLP 送到 Collector，Metrics 由 Prometheus scrape，Logs 送 Loki，Traces 送 Tempo；Grafana 已載入 dashboard 與 Trace-to-Logs 關聯。Collector 保留 `debug` exporter，僅適合受控教學環境。
 
-開啟 Grafana 的 `Todo service overview` dashboard，先在 Todo 新增幾筆待辦並勾選完成，再重新整理列表產生流量。Metrics 需要至少兩次 scrape 才能計算 rate；dashboard 可選最近 15 分鐘。沒有 5xx 時比率顯示 `0`，服務完全沒有指標時仍會缺資料。Grafana Explore 可用 `{service_name="todo-api"}` 查詢 Loki；Trace-to-Logs 使用 `trace_id` metadata 篩選，因為 OTLP 的 trace ID 不一定出現在 log 本文。
+開啟 Grafana 的 `Todo service overview` dashboard，先在 Todo 新增幾筆待辦並勾選完成，再重新整理列表產生流量。Metrics 需要至少兩次 scrape 才能計算 rate；dashboard 可選最近 15 分鐘。沒有 5xx 時比率顯示 `0`，服務完全沒有指標時仍會缺資料。Grafana Explore 可用 `{service_name="todo-api"}` 查詢 Loki；Trace-to-Logs 使用 `trace_id` metadata 篩選，因為 OTLP 的 trace ID 不一定出現在 log 本文。Tempo 搜尋結果可能省略 trace ID 前導 `0`，關聯查詢也處理這種格式差異。
 
 Backstage 的 `Create` 只有正式換版模板。填入 API CI 產出的 64 位 digest（不含 `sha256:`），模板提出 PR，review／merge 後由 Argo CD 同步 CR，再由 Operator 建立／更新工作負載。Catalog 的 Kubernetes 頁面查詢 `app=todo-api` 等 label，不查詢 Microservice conditions，也不保存交付事件時間線。
 
