@@ -120,7 +120,7 @@ jobs:
           push: ${{ github.event_name != 'pull_request' && (startsWith(github.ref, 'refs/tags/platform-v') || github.event_name == 'workflow_dispatch') }}
           tags: |
             ghcr.io/yrw9281/${{ matrix.image }}:${{ github.sha }}
-            ghcr.io/yrw9281/${{ matrix.image }}:${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.number) || github.event_name == 'workflow_dispatch' && format('manual-{0}', github.run_id) || github.ref_name }}
+            ghcr.io/yrw9281/${{ matrix.image }}:${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.number) || github.ref_name }}
           cache-from: type=gha,scope=${{ matrix.image }}
           cache-to: type=gha,mode=max,scope=${{ matrix.image }}
           provenance: true

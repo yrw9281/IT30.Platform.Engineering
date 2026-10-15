@@ -271,7 +271,7 @@ cp src/final/ci/platform.yaml .github/workflows/platform-full.yaml
 
 將 workflow 與 `src/final/` 一起提交，再為 `main` 設定 required checks 與人工 review。Workflow 檢查渲染、資源唯一性、CRD schema、Todo API 的固定合約／repository／digest，建置兩個 .NET 專案與四個 image；PR 只建置，不推送。
 
-`platform-v*` tag 或手動執行會推送 API、BFF、Web、Backstage image，並在 job summary 輸出 digest。手動執行使用 `manual-<run ID>` 作為 image tag，不直接使用可能含 `/` 的分支名稱。Workflow 不修改部署設定、不自動合併 PR；image digest 對應的 CI 身分／來源與是否允許 promotion 仍需 review，不是只驗證格式就算供應鏈驗證完成。
+`platform-v*` tag 或手動執行會推送 API、BFF、Web、Backstage image，並在 job summary 輸出 digest。手動執行時選擇 `main`；workflow 直接使用 ref 名稱作為 image tag，不適用含 `/` 的分支名稱。Workflow 不修改部署設定、不自動合併 PR；image digest 對應的 CI 身分／來源與是否允許 promotion 仍需 review，不是只驗證格式就算供應鏈驗證完成。
 
 已發布的初始 image 可直接用來啟動教學環境。要由這份來源重新建置，可以使用：
 
