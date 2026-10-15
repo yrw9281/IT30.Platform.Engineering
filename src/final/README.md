@@ -9,7 +9,7 @@
 | 目錄 | 內容與唯一管理來源 |
 | --- | --- |
 | `foundation/` | 四個 Namespace 與 `Microservice` CRD |
-| `bootstrap/` | 固定版本的 Argo CD、NGINX Ingress Controller、Gatekeeper；各自只保存一份官方安裝 manifest |
+| `bootstrap/` | 固定版本的 Argo CD、NGINX Ingress Controller、Gatekeeper |
 | `observability/` | Collector、Prometheus、Loki、Tempo、Grafana、datasource 與 dashboard |
 | `operator/` | Kopf handler、資源展開、健康回報、RBAC 與 Deployment；Kustomize 產生程式碼 ConfigMap |
 | `backstage/` | Catalog、單一 PR 模板、Kubernetes 唯讀權限、Deployment 與可獨立建置的最小 Backstage App |
@@ -39,8 +39,6 @@ kubectl get nodes
 
 這份設定供測試叢集使用，平台 Pod 帶有 control-plane 的 `NoSchedule` toleration，可使用 worker 與 control-plane 的剩餘容量，但不移除節點 taint。共用設定在 `bootstrap/scheduling/`；Operator 產生的 Todo API Pod 也帶有同樣的 toleration。正式環境應使用足夠的專用 worker，移除各 Kustomization 的 scheduling component 與 Operator 內對應設定。Node 為 `Ready` 不代表還有容量，若 Pod 停在 `Pending`，請查看 `kubectl describe pod` 的排程事件。
 
-API Server 也必須能透過 TLS 連線到各 Node 的 kubelet，否則 Pod 可為 `Running`，但 `logs`、`exec`、`port-forward` 會失敗。若出現 `error dialing backend: remote error: tls: internal error`，請由叢集管理者檢查 `kubectl get csr` 與 kubelet serving certificate；只能在核對 requester、Subject、SAN 與 Node 位址後核准對應 CSR，不要批次核准未知申請或停用 TLS 驗證。
-
 預設使用本 repository 的 `main`：
 
 - Argo CD 讀取 `src/final/config/runtime` 與 `src/final/config/todo-api`。
@@ -53,7 +51,7 @@ API Server 也必須能透過 TLS 連線到各 Node 的 kubelet，否則 Pod 可
 
 ## 安裝順序
 
-所有指令從 `src/final/` 執行。不使用 `kubectl apply -R -f .`：目錄裡有 Kustomize 設定、Backstage Catalog／Template、應用程式設定與 workflow，它們不是 Kubernetes API 資源。CRD 與 webhook 也必須先完成註冊，才能提交依賴它們的資源，因此沒有將所有階段塞進一份根目錄 Kustomization。
+以下指令從 `src/final/` 依序執行，讓 CRD 與 webhook 先就緒，再套用依賴它們的資源。不要使用 `kubectl apply -R -f .`，因為目錄內也包含不能直接提交給 Kubernetes API 的設定檔與模板。
 
 ### 1. 建立 Namespace 與 CRD
 
@@ -68,8 +66,6 @@ kubectl wait --for=condition=Established \
 ### 2. 安裝 controller
 
 Argo CD 與 Gatekeeper 的 CRD 較大，使用 server-side apply，避免超過 client-side apply 的 annotation 大小限制。
-
-Argo CD 的 Redis 保留官方版本 `7.2.7-alpine`，改從 Docker Hub 拉取，避免環境無法連線至 ECR Public。Ingress 的 admission Job 完成後保留 10 分鐘，讓下方的 `kubectl wait` 能確認結果；官方預設立即清除 Job，可能在查詢前就已不存在。
 
 ```bash
 kubectl apply --server-side -k bootstrap/argocd
@@ -238,13 +234,13 @@ kubectl get secret argocd-initial-admin-secret -n argocd \
 
 Todo 流量為 Browser → Ingress → BFF → Todo API。API 與 BFF 將 OTLP 送到 Collector，Metrics 由 Prometheus scrape，Logs 送 Loki，Traces 送 Tempo；Grafana 已載入 dashboard 與 Trace-to-Logs 關聯。Collector 保留 `debug` exporter，僅適合受控教學環境。
 
-開啟 Grafana 的 `Todo service overview` dashboard，先在 Todo 新增幾筆待辦並勾選完成，再重新整理列表產生流量。Metrics 需要至少兩次 scrape 才能計算 rate；dashboard 可選最近 15 分鐘。沒有 5xx 時比率顯示 `0`，服務完全沒有指標時仍會缺資料。Grafana Explore 可用 `{service_name="todo-api"}` 查詢 Loki；Trace-to-Logs 使用 `trace_id` metadata 篩選，因為 OTLP 的 trace ID 不一定出現在 log 本文。Tempo 搜尋結果可能省略 trace ID 前導 `0`，關聯查詢也處理這種格式差異。
+在 Todo 新增幾筆待辦、勾選完成並重新整理列表，產生流量後，開啟 Grafana 的 `Todo service overview` dashboard 查看指標。在 Explore 選擇 Loki，以 `{service_name="todo-api"}` 查詢日誌；選擇 Tempo 查詢追蹤，並透過 Trace-to-Logs 查看相關日誌。
 
-Backstage 的 `Create` 只有正式換版模板。填入 API CI 產出的 64 位 digest（不含 `sha256:`），模板提出 PR，review／merge 後由 Argo CD 同步 CR，再由 Operator 建立／更新工作負載。Catalog 的 Kubernetes 頁面查詢 `app=todo-api` 等 label，不查詢 Microservice conditions，也不保存交付事件時間線。
+在 Backstage 的 `Create` 換版模板填入 API CI 產出的 64 位 digest（不含 `sha256:`），即可提出 PR。經 review／merge 後，由 Argo CD 同步 CR，再由 Operator 建立／更新工作負載。
 
 ## CI 與重新建置 image
 
-GitHub 只會執行 `.github/workflows/` 裡的 workflow；`ci/platform.yaml` 是唯一保存的安裝來源，不能靠 Kubernetes apply 啟用它。從 repository 根目錄執行：
+將 `ci/platform.yaml` 複製到 `.github/workflows/`，GitHub Actions 才會執行。從 repository 根目錄執行：
 
 ```bash
 mkdir -p .github/workflows
@@ -275,7 +271,7 @@ docker build --secret id=build-ca,src=/etc/ssl/certs/ca-certificates.crt \
 
 ## 版本與限制
 
-`bootstrap/*/install.yaml` 是下列 Apache-2.0 專案的官方 manifest 快照，沒有另存一套 Helm chart 或渲染副本。升級時替換同一份快照並重新檢查既有 patch；不要同時用 Helm 與這份 manifest 管理同名 controller。
+`bootstrap/*/install.yaml` 保存下列 Apache-2.0 專案的官方安裝 manifest。升級時替換為目標版本，並檢查既有 patch 是否仍適用；不要同時用 Helm 與這份 manifest 管理同名 controller。
 
 | 元件 | 版本 | 原始來源 |
 | --- | --- | --- |
@@ -291,4 +287,6 @@ Todo API 使用單副本的記憶體型資料，換版／重啟會遺失。不�
 
 Backstage 保留 Guest 登入與 allow-all permission policy，只能在受控的本機入口操作。Catalog 的 owner／label 不是使用者授權；正式部署必須補上身分驗證、細分權限、持久化、TLS、備份與 image pull／Git credential 管理。
 
-Gatekeeper 拒絕原生 workload 時，錯誤會出現在 Operator log 與重試，不會自動整理成完整的 Backstage 交付歷史。Argo CD health patch 會檢查外層與 condition 的 generation，仍只能根據目前 CR status 判斷。整條 PR → merge → sync → rollout 與政策允許／拒絕結果，必須在實際叢集逐段驗證，不能只用 YAML 渲染成功宣稱端到端部署成功。
+Backstage Catalog 的 Kubernetes 頁面依 `app=todo-api` 等 label 查詢資源現況，不查詢 Microservice conditions，也不提供完整交付歷史。Gatekeeper 拒絕 Operator 建立／更新的原生 workload 時，需查看 Operator log 與重試情況。
+
+Argo CD health patch 會檢查外層與 condition 的 generation，但只能根據目前 CR status 判斷健康狀態。PR → merge → sync → rollout 與政策允許／拒絕結果，仍需在實際叢集逐段驗證；YAML 渲染成功不代表端到端部署成功。
