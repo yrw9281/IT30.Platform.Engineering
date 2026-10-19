@@ -26,7 +26,7 @@ Namespace 只在 `foundation/` 宣告；`ingress-nginx` 與 `gatekeeper-system` 
 
 ## 開始前
 
-準備可存取該 Cluster 的 kubeconfig、管理者權限，以及含 Kustomize 的 `kubectl`。`kubectl` 與 API Server 的 minor version 差距須在一版以內；例如 Kubernetes `1.30` 使用 `kubectl 1.29`–`1.31`。叢集需能存取 GHCR、Docker Hub、`registry.k8s.io`、`quay.io` 與 PyPI，Argo CD 需能讀取 GitHub；Operator init container 會安裝固定版本的 Kopf／Kubernetes client。建立 Cluster 的方式不限定。
+準備可存取該 Cluster 的 kubeconfig、管理者權限、Bash 或 Zsh，以及含 Kustomize 的 `kubectl`。`kubectl` 與 API Server 的 minor version 差距須在一版以內；例如 Kubernetes `1.30` 使用 `kubectl 1.29`–`1.31`。叢集需能存取 GHCR、Docker Hub、`registry.k8s.io`、`quay.io` 與 PyPI，Argo CD 需能讀取 GitHub；Operator init container 會安裝固定版本的 Kopf／Kubernetes client。建立 Cluster 的方式不限定。
 
 先確認 context 指向這個乾淨 Cluster，Node 全部為 `Ready`；context 不正確或有 Node 尚未就緒時，先處理再繼續：
 
@@ -94,14 +94,14 @@ Ingress 使用官方 bare-metal 的 NodePort Service，不需要雲端 LoadBalan
 
 ### 3. 註冊政策
 
-先提交 Template，等 Gatekeeper 產生對應的 CRD，再提交 Constraint。
+先提交 Template，等 Gatekeeper 回報建立完成、對應的 CRD 就緒，再提交 Constraint。這裡使用 JSONPath 等待狀態，避免依賴舊版 `kubectl` 不支援的 `--for=create`。
 
 ```bash
 kubectl apply --server-side -k policy/templates
-kubectl wait --for=create \
-  crd/k8sdeploymentnoprivileged.constraints.gatekeeper.sh \
-  crd/k8sdeploymentrequiredlimits.constraints.gatekeeper.sh \
-  crd/k8smicroserviceimagepolicy.constraints.gatekeeper.sh --timeout=180s
+kubectl wait --for=jsonpath='{.status.created}'=true \
+  constrainttemplate/k8sdeploymentnoprivileged \
+  constrainttemplate/k8sdeploymentrequiredlimits \
+  constrainttemplate/k8smicroserviceimagepolicy --timeout=180s
 kubectl wait --for=condition=Established \
   crd/k8sdeploymentnoprivileged.constraints.gatekeeper.sh \
   crd/k8sdeploymentrequiredlimits.constraints.gatekeeper.sh \
@@ -115,10 +115,11 @@ kubectl apply --server-side -k policy/constraints
 
 ### 4. 提供必要憑證
 
-Grafana 密碼與 GitHub token 不寫進 manifest。以下指令從終端機輸入，值不出現在 shell history；不要開啟 `set -x`。PAT 只授權這個 repository 的 Contents／Pull requests 讀寫，不給 workflow、叢集或組織管理權限。GitHub repository 必須允許建立 PR。
+Grafana 密碼與 GitHub token 不寫進 manifest。以下指令在 Bash 或 Zsh 的終端機輸入，值不出現在 shell history；不要開啟 `set -x`。括號讓錯誤處理設定只作用於子 shell，不影響原本的終端機或 VS Code shell integration。PAT 只授權這個 repository 的 Contents／Pull requests 讀寫，不給 workflow、叢集或組織管理權限。GitHub repository 必須允許建立 PR。
 
 ```bash
-set -euo pipefail
+(
+set -eo pipefail
 printf 'Grafana admin password: '
 read -r -s GRAFANA_PASSWORD
 printf '\n'
@@ -136,13 +137,18 @@ printf %s "$GITHUB_PAT" | kubectl create secret generic backstage-github \
   -n backstage --from-file=token=/dev/stdin \
   --dry-run=client -o yaml | kubectl apply -f -
 unset GITHUB_PAT
+)
 ```
+
+輸入錯誤時，重新執行對應 Secret 的輸入與建立指令即可，`kubectl apply` 會更新既有值，不必先刪除 Secret。若 Backstage 已啟動，更新 PAT 後執行 `kubectl rollout restart deployment/backstage -n backstage`，讓 Pod 重新讀取環境變數；若私有 Git 的 Argo CD repository Secret 共用這個 PAT，也要重新執行下方的複製指令。Grafana 的 Secret 用於初始化管理員密碼；已啟動並完成初始化後，應透過 Grafana 的密碼變更功能修改，不能只更新 Secret。
 
 Backstage Kubernetes plugin 使用 Pod 的 in-cluster ServiceAccount 與 CA，不需要手動準備 Kubernetes token。RoleBinding 只允許它唯讀查詢 `todo`，不允許讀取 Secret 或寫入 workload。
 
 若 Git repository 是私有的，Argo CD 也需要讀取權限。以下從剛建立的 Secret 讀取 PAT，直接送入 Argo CD 的 repository Secret，不在終端機顯示 token：
 
 ```bash
+(
+set -eo pipefail
 kubectl get secret backstage-github -n backstage -o jsonpath='{.data.token}' |
   base64 --decode |
   kubectl create secret generic todo-full-repository -n argocd \
@@ -153,6 +159,7 @@ kubectl get secret backstage-github -n backstage -o jsonpath='{.data.token}' |
     --dry-run=client -o yaml | kubectl apply -f -
 kubectl label secret todo-full-repository -n argocd \
   argocd.argoproj.io/secret-type=repository --overwrite
+)
 ```
 
 教學環境可共用這個限定 repository 的 PAT；正式環境應分開提供 Argo CD 唯讀 Git 憑證與 Backstage 的 PR 寫入憑證。
@@ -179,8 +186,8 @@ kubectl rollout status deployment/backstage -n backstage --timeout=300s
 
 ```bash
 kubectl apply -k gitops
-kubectl wait --for=create \
-  application/todo-full-runtime application/todo-full-api -n argocd --timeout=300s
+kubectl wait --for=condition=ResourcesUpToDate \
+  applicationset/todo-full -n argocd --timeout=300s
 kubectl get applications -n argocd
 kubectl wait --for=jsonpath='{.status.sync.status}'=Synced \
   application/todo-full-runtime application/todo-full-api -n argocd --timeout=300s
@@ -190,7 +197,7 @@ kubectl get microservice todo-api -n todo -o yaml
 kubectl get deployment,service,ingress -n todo
 ```
 
-同步失敗時查看 Application 的 conditions、source path 與 revision；健康失敗時查看 CR generation、conditions、Operator log 與 Pod event。`Synced` 不代表 image 拉取成功，可用以下指令定位問題：
+`ResourcesUpToDate` 只代表 ApplicationSet 已建立或更新 Application，不代表它們已同步；後面仍須分別等待 `Synced` 與 `Healthy`。同步失敗時查看 Application 的 conditions、source path 與 revision；健康失敗時查看 CR generation、conditions、Operator log 與 Pod event。`Synced` 不代表 image 拉取成功，可用以下指令定位問題：
 
 ```bash
 kubectl describe applicationset todo-full -n argocd
@@ -199,6 +206,13 @@ kubectl describe application todo-full-api -n argocd
 kubectl logs deployment/microservice-operator -n todo --tail=100
 kubectl get pods -n todo
 kubectl get events -n todo --sort-by=.metadata.creationTimestamp
+```
+
+若 conditions 顯示 `authentication required` 或 `Repository not found`，先確認 repository URL、PAT 的 repository 授權與第 4 節的 Argo CD repository Secret；GitHub 對未授權的私有 repository 也會回傳「找不到」。更新憑證後，可要求 Argo CD 重新讀取 Git：
+
+```bash
+kubectl annotate application todo-full-runtime todo-full-api -n argocd \
+  argocd.argoproj.io/refresh=hard --overwrite
 ```
 
 ApplicationSet 沒有啟用自動 prune，也保留刪除 ApplicationSet 時的資源。這是避免誤刪教學環境的設定，**不等於自動清理**；移除 CR 會透過 owner references 刪除 Todo API 的子資源，應另外 review 刪除操作。
@@ -234,9 +248,17 @@ kubectl get secret argocd-initial-admin-secret -n argocd \
 
 Todo 流量為 Browser → Ingress → BFF → Todo API。API 與 BFF 將 OTLP 送到 Collector，Metrics 由 Prometheus scrape，Logs 送 Loki，Traces 送 Tempo；Grafana 已載入 dashboard 與 Trace-to-Logs 關聯。Collector 保留 `debug` exporter，僅適合受控教學環境。
 
-在 Todo 新增幾筆待辦、勾選完成並重新整理列表，產生流量後，開啟 Grafana 的 `Todo service overview` dashboard 查看指標。在 Explore 選擇 Loki，以 `{service_name="todo-api"}` 查詢日誌；選擇 Tempo 查詢追蹤，並透過 Trace-to-Logs 查看相關日誌。
+在 Todo 新增幾筆待辦、勾選完成並重新整理列表，產生流量後，開啟 Grafana 的 `Todo service overview` dashboard 查看指標。Metrics 需要經過 SDK 匯出與 Prometheus scrape，初次產生資料及 `rate` 圖表可能需要一至兩分鐘；空白圖表不一定代表部署失敗。也可在 Prometheus port-forward 開啟時，從另一個終端機確認 API 與 BFF 都有 HTTP 指標：
 
-在 Backstage 的 `Create` 換版模板填入 API CI 產出的 64 位 digest（不含 `sha256:`），即可提出 PR。經 review／merge 後，由 Argo CD 同步 CR，再由 Operator 建立／更新工作負載。
+```bash
+curl --noproxy '*' --fail --max-time 15 --get \
+  --data-urlencode 'query=sum by (service_name) (http_server_request_duration_seconds_count{service_name=~"todo-api|todo-bff"})' \
+  http://127.0.0.1:9090/api/v1/query
+```
+
+回應應為 `status: success`，且 `data.result` 同時包含 `service_name: todo-api` 與 `todo-bff`；只有 `success` 而結果為空，還不能確認遙測資料已送達。在 Explore 選擇 Loki，以 `{service_name="todo-api"}` 查詢日誌；選擇 Tempo 查詢追蹤，並透過 Trace-to-Logs 查看相關日誌，確認同一個 trace ID 能對應到 API 與 BFF 的 spans 及 API 日誌。
+
+在 Backstage 的 `Create` 換版模板填入 API CI 產出的 64 位 digest（不含 `sha256:`），即可提出 PR。digest 必須與目前設定不同，且 image 已發布、可由叢集拉取；相同內容不會產生可換版的差異。經 review／merge 後，由 Argo CD 同步 CR，再由 Operator 建立／更新工作負載。確認 Application 的 `.status.sync.revision` 已指向合併後的 Git commit，且 Microservice 的 `status.observedGeneration` 與 Ready condition 的 `observedGeneration` 都等於 `metadata.generation`，再確認 Ready 為 `True`；不能只看 PR 已合併或舊的 Healthy 狀態。
 
 ## CI 與重新建置 image
 
@@ -249,7 +271,7 @@ cp src/final/ci/platform.yaml .github/workflows/platform-full.yaml
 
 將 workflow 與 `src/final/` 一起提交，再為 `main` 設定 required checks 與人工 review。Workflow 檢查渲染、資源唯一性、CRD schema、Todo API 的固定合約／repository／digest，建置兩個 .NET 專案與四個 image；PR 只建置，不推送。
 
-`platform-v*` tag 或手動執行會推送 API、BFF、Web、Backstage image，並在 job summary 輸出 digest。Workflow 不修改部署設定、不自動合併 PR；image digest 對應的 CI 身分／來源與是否允許 promotion 仍需 review，不是只驗證格式就算供應鏈驗證完成。
+`platform-v*` tag 或手動執行會推送 API、BFF、Web、Backstage image，並在 job summary 輸出 digest。手動執行時選擇 `main`；workflow 直接使用 ref 名稱作為 image tag，不適用含 `/` 的分支名稱。Workflow 不修改部署設定、不自動合併 PR；image digest 對應的 CI 身分／來源與是否允許 promotion 仍需 review，不是只驗證格式就算供應鏈驗證完成。
 
 已發布的初始 image 可直接用來啟動教學環境。要由這份來源重新建置，可以使用：
 
@@ -260,9 +282,11 @@ docker build -t ghcr.io/yrw9281/it30-todo-web:full src/final/services/WebApp
 docker build -t ghcr.io/yrw9281/it30-idp-backstage:full src/final/backstage/app
 ```
 
-這組建置指令從 repository 根目錄執行。自行登入 GHCR 並推送後，以實際 digest 更新 API CR，更新 BFF／Web 的 Git 設定與 Backstage Deployment 的 image。不要把不存在的 digest 填進 CR。Backstage Dockerfile 內含安裝、型別檢查與 backend／frontend 打包，不需要先在本機安裝 `node_modules` 或準備 bundle。
+這組建置指令從 repository 根目錄執行，需要啟用 BuildKit 的 Docker；建置環境也須能存取 Microsoft Container Registry、NuGet、Debian 套件來源與 npm registry。自行登入 GHCR 並推送後，以實際 digest 更新 API CR，更新 BFF／Web 的 Git 設定與 Backstage Deployment 的 image。不要把不存在的 digest 填進 CR。Backstage Dockerfile 內含安裝、型別檢查與 backend／frontend 打包，不需要先在本機安裝 `node_modules` 或準備 bundle。
 
-如果企業 HTTPS proxy 使用自有 CA，且主機的系統 CA bundle 已信任它，可在 Backstage 建置時傳入 BuildKit secret。不將 CA 加進 repository 或 runtime image，也不關閉 TLS 驗證：
+一般網路環境不需要額外提供 CA。若 API／BFF 建置在 `dotnet restore` 出現 `NU1301`，請先確認建置容器能連到 NuGet；企業 HTTPS proxy 的自有 CA 未受容器信任，也可能造成這個錯誤，應由該環境的建置基底或 CI 設定處理，不應關閉 TLS 驗證。
+
+Backstage Dockerfile 另有選用的 `build-ca` secret 支援。若企業 HTTPS proxy 使用自有 CA，且主機的系統 CA bundle 已信任它，可使用下列指令；Linux 以外的系統請替換為實際的 PEM bundle 路徑。不將 CA 加進 repository 或 runtime image：
 
 ```bash
 docker build --secret id=build-ca,src=/etc/ssl/certs/ca-certificates.crt \
