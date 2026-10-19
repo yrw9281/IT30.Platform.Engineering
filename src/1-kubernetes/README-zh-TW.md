@@ -1,6 +1,8 @@
-# Kubernetes 部署與 Microservice 合約
+[English](README.md) | [繁體中文](README-zh-TW.md)
 
-對應 Day 03–05、Day 15 與 Day 18。以下指令都從 repository 根目錄執行。
+# Kubernetes 部署與 Microservice CRD
+
+對應 Day 03–05、Day 15 與 Day 18。以下指令皆從儲存庫根目錄執行。
 
 | 目錄 | 用途 |
 | --- | --- |
@@ -10,9 +12,11 @@
 
 `kind/` 與 `ghcr/` 管理同名資源，擇一使用。啟用 Operator 後，不要再用這兩組 manifest 覆寫它管理的 Todo API。
 
+兩組設定都預設執行兩個 Todo API 副本，各 Pod 的記憶體資料不共享，查詢或更新時可能找不到剛新增的待辦事項。使用前，請將選用目錄中 `todo-api.yaml` 的 `spec.replicas` 改為 `1`；擴展副本前須先導入共享儲存。若由 Argo CD 管理，請將變更推送到 Git，只執行 `kubectl scale` 不會保留設定。
+
 ## 本機 image 與 Kind
 
-先依 [應用程式說明](../0-todo-microservices/README.md) 建置三個 image，再載入已存在的 Kind 叢集：
+需要 Docker、Kind、`kubectl` 與已存在的 Kind 叢集。先依 [應用程式說明](../0-todo-microservices/README-zh-TW.md) 建置三個 image，再載入叢集：
 
 ```bash
 kubectl config current-context
@@ -20,6 +24,8 @@ kind load docker-image todo-api:0.1.0 todo-bff:0.1.0 todo-web:0.1.0
 kubectl apply -k src/1-kubernetes/kind
 kubectl get deployment,service,ingress -n todo
 ```
+
+`kind load` 預設使用名稱為 `kind` 的叢集；使用其他名稱時，加入 `--name <cluster-name>`，並確認 `kubectl` context 指向同一個叢集。
 
 Ingress 使用 `nginx` IngressClass，將 `todo.localhost` 的 `/api` 導向 BFF，其餘路徑導向網頁。叢集必須另外安裝 NGINX Ingress Controller；沒有 controller 時，可先透過 Service 存取：
 
@@ -31,7 +37,7 @@ kubectl port-forward service/todo-bff 8080:8080 -n todo
 
 ## GHCR image
 
-`ghcr/` 目前使用 `:0.1.0` tag，不是 digest promotion。先確認三個 image 已發布且可由叢集拉取：
+`ghcr/` 使用可變動的 `:0.1.0` tag，未以 digest 固定版本。三個 image 都必須已發布且可由叢集拉取。私有 package 請先完成下方的 Namespace、Secret 與 Deployment 設定，再執行部署：
 
 ```bash
 kubectl apply -k src/1-kubernetes/ghcr
@@ -40,7 +46,7 @@ kubectl rollout status deployment/todo-bff -n todo
 kubectl rollout status deployment/web -n todo
 ```
 
-若 package 為 private，需要 Namespace 內的唯讀 image pull Secret。使用只具備目標 package `read:packages` 的憑證，不要使用 CI 的短期 `GITHUB_TOKEN`。例如在 Bash 中以隱藏輸入建立 Secret：
+私有 package 需要 `todo` Namespace 中的唯讀拉取憑證。請先依核准流程建立 Namespace，再使用只有目標 package `read:packages` 權限的憑證建立 Secret，不要使用 CI 的短期 `GITHUB_TOKEN`。以下在 Bash 中隱藏輸入：
 
 ```bash
 set -euo pipefail
@@ -62,9 +68,9 @@ imagePullSecrets:
 
 ## Microservice CRD
 
-`crd/microservice-crd.yaml` 是唯一的 CRD 定義，API 為 `platform.example.io/v1alpha1`，範圍是 Namespace。輸入只有 `spec.image` 與 `spec.port`，沒有 `env` 或 Secret 引用。
+章節範例共用 `crd/microservice-crd.yaml`，定義 Namespace 範圍的 `platform.example.io/v1alpha1` API。輸入只有 `spec.image` 與 `spec.port`，沒有 `env` 或 Secret 引用。`src/final/` 另有 CRD 快照，僅搭配該目錄的部署設定使用。
 
-目前版本已要求根層的 `spec` 必填，也包含 Day 22 的 `status.conditions`，不同於 Day 05／18 展示的早期 schema。升級既有叢集前，先查詢所有 CR，確認都有非空 image 與 `1–65535` 的整數 port；新增 required 欄位不會修復舊資料：
+目前 schema 要求根層的 `spec` 必填，並包含 Day 22 的 `status.conditions`；Day 05／18 展示的是早期版本。升級前，請查詢所有 CR，確認 image 非空、port 為 `1–65535` 的整數，先修正不符的資料再加入必填限制：
 
 ```bash
 kubectl get microservices -A -o yaml
@@ -91,4 +97,4 @@ kubectl apply --server-side --dry-run=server \
 
 最後一個案例的 port 是 `65536`，預期被拒絕。dry-run 通過不代表 image 存在或工作負載就緒。`web.yaml` 只用來檢查 schema；Web image 不符合目前 Operator 的 Todo API probes，不要交給它部署。
 
-實際提交 `todo-api.yaml` 與部署 Operator 的步驟見 [IDP 說明](../4-idp/README.md)。CR 本身不會建立 Deployment；刪除已由 Operator 管理的 CR，則會連帶回收它擁有的工作負載。
+實際提交 `todo-api.yaml` 與部署 Operator 的步驟見 [IDP 說明](../4-idp/README-zh-TW.md)。CR 本身不會建立 Deployment；刪除已由 Operator 管理的 CR，則會連帶回收它擁有的工作負載。

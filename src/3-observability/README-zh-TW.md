@@ -1,8 +1,10 @@
+[English](README.md) | [繁體中文](README-zh-TW.md)
+
 # OpenTelemetry 與 Grafana
 
-對應 Day 09–13。`otel-collector/` 保存 Collector Gateway，`grafana/` 保存 Prometheus、Loki、Tempo、Grafana 與 dashboard。跨服務追蹤的程式碼在 [Todo API 與 BFF](../0-todo-microservices/README.md)，沒有另一組 tracing 應用程式。
+對應 Day 09–13。`otel-collector/` 包含 Collector Gateway，`grafana/` 包含 Prometheus、Loki、Tempo、Grafana 與儀表板。跨服務追蹤的程式碼在 [Todo API 與 BFF](../0-todo-microservices/README-zh-TW.md)。
 
-以下指令都從 repository 根目錄執行。
+以下指令皆從儲存庫根目錄執行。
 
 ## 部署觀測元件
 
@@ -17,13 +19,13 @@ kubectl rollout status deployment/tempo -n observability
 kubectl rollout status deployment/grafana -n observability
 ```
 
-Collector 接收 OTLP/gRPC `4317` 與 OTLP/HTTP `4318`，依序執行記憶體限制、補上 `platform.name=todo-platform`、移除列出的敏感 attributes，再批次匯出。Metrics 暴露在 `8889`，由 Prometheus 每 15 秒 scrape；Logs 送往 Loki，Traces 送往 Tempo。backend 尚未就緒時，對應 exporter 可能回報連線錯誤。
+Collector 透過 `4317` 接收 OTLP/gRPC、透過 `4318` 接收 OTLP/HTTP，再依序限制記憶體、補上 `platform.name=todo-platform`、移除設定中列出的敏感屬性，最後批次匯出。指標由 Prometheus 每 15 秒從 `8889` 擷取，日誌送往 Loki，追蹤送往 Tempo。儲存後端尚未就緒時，對應 exporter 可能回報連線錯誤。
 
-三條 pipeline 都保留 `debug` exporter，供受控開發環境查看處理過的資料。它不能取代 backend，也不代表應用程式可以先把 token、Authorization header 或 Todo 內容送進 telemetry。
+三條資料管線也使用 `debug` exporter，供受控開發環境查看資料；儲存與查詢仍由後端負責。token、Authorization header 與 Todo 內容應在應用程式端排除，不要送入遙測資料。
 
 ## 驗證跨服務 Trace Context
 
-依 [Kubernetes 說明](../1-kubernetes/README.md) 部署 BFF 與 API，確認它們的 OTLP endpoint 指向 `http://otel-collector.observability.svc:4317`。轉送 BFF Service：
+依 [Kubernetes 說明](../1-kubernetes/README-zh-TW.md) 部署 BFF 與 API，確認它們的 OTLP endpoint 指向 `http://otel-collector.observability.svc:4317`。轉送 BFF Service：
 
 ```bash
 kubectl port-forward service/todo-bff 8080:8080 -n todo
@@ -40,9 +42,9 @@ curl --fail \
 kubectl logs deployment/otel-collector -n observability
 ```
 
-預期同一條 Trace 中有 BFF server span、HTTP client span、API server span 與 `todo.create`。資料保存在記憶體中，因此沒有 database span。
+預期同一條 Trace 包含 BFF 接收請求、HTTP 呼叫、API 接收請求的 spans，以及 `todo.create`。資料存在記憶體中，因此不會有資料庫 span。
 
-若只想確認 Collector 程序是否回應，可以另外轉送 Deployment 的 `13133` port，再執行 `curl --fail http://127.0.0.1:13133/`。health endpoint 成功不代表資料已送到最終 backend。
+若只想確認 Collector 程序是否回應，可在另一個終端機執行 `kubectl port-forward deployment/otel-collector 13133:13133 -n observability`，再執行 `curl --fail http://127.0.0.1:13133/`。health endpoint 成功不代表資料已送到最終 backend。
 
 ## 在 Grafana 查詢
 
@@ -50,7 +52,7 @@ kubectl logs deployment/otel-collector -n observability
 kubectl port-forward service/grafana 3000:3000 -n observability
 ```
 
-開啟 `http://127.0.0.1:3000`，以開發環境帳密 `admin`／`admin` 登入。`Todo service overview` dashboard 已保存 request rate、p95、延遲 heatmap、5xx ratio 與 application logs；以 service 與 route 篩選，並等待至少一個 scrape interval。少量請求不一定能立即計算 p95，沒有 5xx 序列也不代表查詢失敗。
+開啟 `http://127.0.0.1:3000`，以開發環境帳密 `admin`／`admin` 登入。`Todo service overview` 儀表板包含請求速率、p95 延遲、延遲熱圖、5xx 比例與應用程式日誌，可依服務與路由篩選。請等待至少一次指標擷取；請求太少時，p95 可能暫時沒有資料，沒有 5xx 序列也不一定是查詢失敗。
 
 Grafana Explore 的 Tempo datasource 可使用以下 TraceQL：
 
@@ -58,6 +60,6 @@ Grafana Explore 的 Tempo datasource 可使用以下 TraceQL：
 { resource.service.name = "todo-api" }
 ```
 
-Tempo 的 Trace-to-Logs 連到 Loki；Loki 的 TraceID derived field 則可從 log 返回 Trace。關聯是否查得到，取決於實際送出的服務 attributes、trace ID 與 log。
+Tempo 的 Trace-to-Logs 連到 Loki，Loki 的 TraceID 衍生欄位則連回 Trace。要查到相關資料，服務屬性、trace ID 與日誌必須能互相對應。
 
-這組元件都是單一副本，使用 `emptyDir`；Pod 重建會遺失資料與 Grafana 本機設定。它沒有正式環境所需的持久化、HA、帳號治理、備份與 retention 設計，也沒有對外 Ingress。
+各元件皆為單一副本並使用 `emptyDir`，Pod 重建會遺失資料與 Grafana 本機設定。正式環境須另行規劃持久化、高可用性、帳號管理、備份與資料保留政策；本範例也未提供對外 Ingress。

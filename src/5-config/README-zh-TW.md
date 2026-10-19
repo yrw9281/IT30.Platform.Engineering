@@ -1,15 +1,17 @@
+[English](README.md) | [繁體中文](README-zh-TW.md)
+
 # Todo API 的 GitOps 設定
 
-這裡是 Day 24 的 Backstage 模板提出 PR 時使用的目標目錄。`apps/todo-api/overlays/dev/` 保存 `Microservice` 與 `kustomization.yaml`，Dev 沿用既有的 `todo` Namespace，不另外建立環境。
+Day 24 的 Backstage 模板會對 `apps/todo-api/overlays/dev/` 提出設定 PR。這裡保存 Dev 的 `Microservice` 與 `kustomization.yaml`，沿用既有的 `todo` Namespace。
 
-`microservice.yaml` 指定 image digest 與 port `8080`。換版時只修改 `spec.image`，不順便改服務名稱、Namespace 或 port；digest 應來自 Todo API 的受信任 CI 輸出，不能只檢查格式。
+`microservice.yaml` 指定 image digest 與 port `8080`。換版時只修改 `spec.image`，保留服務名稱、Namespace 與 port。請使用受信任的 Todo API CI 輸出，並在審查時核對 digest 來源。
 
-從 repository 根目錄可先查看 Kustomize 產物：
+從儲存庫根目錄預覽 Kustomize 輸出：
 
 ```bash
 kubectl kustomize src/5-config/apps/todo-api/overlays/dev
 ```
 
-渲染成功不代表 Kubernetes schema、image 來源檢查或 rollout 已通過。設定 PR 仍需要獨立檢查、review 與分支保護。
+渲染只產生 YAML。Kubernetes schema 與 image 來源須另設 PR 檢查，搭配人工審查及分支保護，部署後再確認新版是否就緒。
 
-[Argo CD](../2-gitops/README.md) 的 `todo-config.yaml` 可讀取本 repository 的 `main` 與這個目錄。啟用前須完成 CRD／Operator 部署與工作負載管理權移交；原生資源的 `todo.yaml` 不讀取這裡。建立或合併 PR 本身不會執行部署，Argo CD 同步 CR 後才由 Operator 處理工作負載。
+[Argo CD](../2-gitops/README-zh-TW.md) 的 `todo-config.yaml` 從 `main` 讀取這個目錄；原生資源的 `todo.yaml` 使用其他來源。啟用同步前，須部署 CRD 與 Operator，並完成工作負載管理權移交。PR 合併後，要等 Argo CD 同步 CR，Operator 才會更新工作負載。
