@@ -12,8 +12,8 @@ Description: 從 K8s、GitOps 到 Observability，建立 Internal Developer Plat
 我有一前篇系列文： [Repo](https://github.com/yrw9281/IT30.Todo.Microservices)
 
 ```plaintext
-DDD? Clean Architecture? Microservices? 帶你用.NET實作打造一個現代化微服務！ 系列
-打造微服務非常複雜，其中許多技術都值得深入探討。但我想做點不一樣的，從系統架構層級剖析整個現代化微服務，並透過簡單的案例帶你一步步實作。
+DDD? Clean Architecture? Microservices? Build modern microservices with .NET! Series
+Building microservices is complex, and many of the technologies deserve a closer look. I want to try something different: examine a modern microservices system at the architecture level and walk through its implementation with a simple example.
 ```
 
 這是上一系列的[結尾文](https://github.com/yrw9281/IT30.Todo.Microservices/blob/main/doc/pages/D30/D30.md)，可承接。

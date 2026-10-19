@@ -67,6 +67,7 @@ Each guide has English and Traditional Chinese versions linked at the top. Choos
 
 | Path | Contents |
 | --- | --- |
+| [`doc/en/`](doc/en/) | The 30 articles in English |
 | [`doc/zh-tw/`](doc/zh-tw/) | The 30 articles in Traditional Chinese |
 | [`doc/assets/`](doc/assets/) | Architecture diagrams and screenshots |
 | [`src/0-todo-microservices/`](src/0-todo-microservices/README.md) | Todo API, BFF, web frontend, and Docker Compose |
@@ -82,17 +83,17 @@ Each guide has English and Traditional Chinese versions linked at the top. Choos
 
 ## Documentation
 
-Start with [Day 01: Why platform engineering after microservices?](doc/zh-tw/D01.md), or use these entry points:
+Start with [Day 01: Why platform engineering after microservices?](doc/en/D01.md), or use these entry points:
 
 | Days | Topic | First article |
 | --- | --- | --- |
-| 01-05 | Introduction and Kubernetes deployment fundamentals | [Day 01](doc/zh-tw/D01.md) |
-| 06-08 | GitOps with Argo CD | [Day 06](doc/zh-tw/D06.md) |
-| 09-13 | Observability | [Day 09](doc/zh-tw/D09.md) |
-| 14-16 | CI and the GitOps handoff | [Day 14](doc/zh-tw/D14.md) |
-| 17-26 | Backstage and the Microservice Operator | [Day 17](doc/zh-tw/D17.md) |
-| 27-29 | API access and resource policies | [Day 27](doc/zh-tw/D27.md) |
-| 30 | Todo API image update walkthrough and series review | [Day 30](doc/zh-tw/D30.md) |
+| 01-05 | Introduction and Kubernetes deployment fundamentals | [Day 01](doc/en/D01.md) |
+| 06-08 | GitOps with Argo CD | [Day 06](doc/en/D06.md) |
+| 09-13 | Observability | [Day 09](doc/en/D09.md) |
+| 14-16 | CI and the GitOps handoff | [Day 14](doc/en/D14.md) |
+| 17-26 | Backstage and the Microservice Operator | [Day 17](doc/en/D17.md) |
+| 27-29 | API access and resource policies | [Day 27](doc/en/D27.md) |
+| 30 | Todo API image update walkthrough and series review | [Day 30](doc/en/D30.md) |
 
 For the preceding application architecture series, see [IT30.Todo.Microservices](https://github.com/yrw9281/IT30.Todo.Microservices) and its [2024 iThome articles](https://ithelp.ithome.com.tw/users/20168953/ironman/7881).
 

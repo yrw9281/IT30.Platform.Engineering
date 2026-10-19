@@ -67,6 +67,7 @@ Todo 資料存在 API 程序的記憶體中，程序重啟後就會消失。
 
 | 路徑 | 內容 |
 | --- | --- |
+| [`doc/en/`](doc/en/) | 30 篇英文文章 |
 | [`doc/zh-tw/`](doc/zh-tw/) | 30 篇繁體中文文章 |
 | [`doc/assets/`](doc/assets/) | 架構圖與操作截圖 |
 | [`src/0-todo-microservices/`](src/0-todo-microservices/README-zh-TW.md) | Todo API、BFF、網頁前端與 Docker Compose |
