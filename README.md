@@ -2,7 +2,7 @@
 
 # IT30.Platform.Engineering
 
-Code and articles for the 2026 iThome Ironman Challenge series, "After building microservices: improving delivery with platform engineering"（微服務寫完後，怎麼用平台工程改善交付流程）.
+Code and articles for the 2026 iThome Ironman Challenge series, ["Microservices built. What next? The golden path to platform engineering"（寫完微服務然後呢？走向平台工程的黃金路徑）](https://ithelp.ithome.com.tw/users/20168953/ironman/9797).
 
 This series continues [IT30.Todo.Microservices](https://github.com/yrw9281/IT30.Todo.Microservices), which covered DDD, Clean Architecture, and microservices with .NET. It uses a small Todo application to explain Kubernetes deployment, GitOps, and an Internal Developer Platform (IDP) built with Backstage.
 

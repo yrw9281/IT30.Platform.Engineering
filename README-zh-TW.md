@@ -2,7 +2,7 @@
 
 # IT30.Platform.Engineering
 
-這個儲存庫收錄 2026 iThome 鐵人賽系列「微服務寫完後，怎麼用平台工程改善交付流程」的程式碼與文章。
+這個儲存庫收錄 2026 iThome 鐵人賽系列[「寫完微服務然後呢？走向平台工程的黃金路徑」](https://ithelp.ithome.com.tw/users/20168953/ironman/9797)的程式碼與文章。
 
 系列承接 [IT30.Todo.Microservices](https://github.com/yrw9281/IT30.Todo.Microservices)。前一系列用 .NET 探討 DDD、Clean Architecture 與微服務；這次以簡化的 Todo 應用程式為例，練習 Kubernetes 部署、GitOps，以及用 Backstage 建立內部開發者平台（Internal Developer Platform，IDP）。
 
